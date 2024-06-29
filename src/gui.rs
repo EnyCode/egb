@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+use std::iter::Map;
+use std::str::FromStr;
+
 use embedded_graphics::geometry::{Point, Size};
 use embedded_graphics::image::ImageRaw;
 use embedded_graphics::mono_font::mapping::StrGlyphMapping;
@@ -15,7 +19,7 @@ use embedded_graphics::{
 const PICO_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("font.raw"), 128),
     glyph_mapping: &StrGlyphMapping::new(
-        "  ! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~ \u{80} \u{81}\u{82}\u{83}\u{84}\u{85}\u{86}\u{87}\u{88}\u{89}\u{8A}\u{8B}\u{8C}\u{8D}\u{8E}\u{8F}\u{90}\u{91}\u{92}\u{93}\u{94}\u{95}\u{96}\u{97}\u{98}\u{99}\u{9A}",
+        "  ! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~ \u{80} \u{81}\u{82}\u{83}\u{84}\u{85}\u{86}\u{87}\u{88}\u{89}\u{8A}\u{8B}\u{8C}\u{8D}\u{8E}\u{8F}\u{90}\u{91}\u{92}\u{93}\u{94}\u{95}\u{96}\u{97}\u{98}\u{99}\u{9A}\u{9B}\u{9C}\u{9D}\u{9E}\u{9F}\u{A0}\u{A1}\u{A2}\u{A3}\u{A4}\u{A5}\u{A6}\u{A7}\u{A8}\u{A9}\u{AA}\u{AB}\u{AC}\u{AD}\u{AE}\u{AF}\u{B0}\u{B1}\u{B2}\u{B3}\u{B4}\u{B5}\u{B6}\u{B7}\u{B8}\u{B9}\u{BA}\u{BB}\u{BC}",
         0,
     ),
     character_size: Size::new(4, 6),
@@ -24,6 +28,18 @@ const PICO_FONT: MonoFont = MonoFont {
     underline: DecorationDimensions::default_underline(6),
     strikethrough: DecorationDimensions::default_strikethrough(3),
 };
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum Button {
+    Up,
+    Down,
+    Left,
+    Right,
+    A,
+    B,
+    Start,
+    Select,
+}
 
 pub struct GUI {
     white_char: MonoTextStyle<'static, Rgb565>,
@@ -95,6 +111,22 @@ impl GUI {
         )
         .draw(display)?;
 
+        let mut inputs = HashMap::new();
+        inputs.insert(Button::A, "Launch");
+        inputs.insert(Button::Start, "Settings");
+
+        self.draw_inputs(inputs);
+
+        Text::with_text_style(
+            "\u{B5}\u{B6}Launch \u{B9}\u{BA}Settings",
+            Point::new(size.width as i32 - 76, size.height as i32 - 25),
+            self.white_char,
+            self.normal_text,
+        )
+        .draw(display)?;
+
         Ok(())
     }
+
+    pub fn draw_inputs(&self, inputs: HashMap<Button, &str>) {}
 }
