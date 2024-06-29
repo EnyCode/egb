@@ -207,17 +207,21 @@ where
             .build();
 
         let (x, y) = (
-            (self.size.width as i32 - 72) / 2,
-            (self.size.height as i32 - 85) / 2,
+            (self.size.width as i32 - 82) / 2,
+            (self.size.height as i32 - 102) / 2,
         );
 
-        Rectangle::new(Point::new(x, y), Size::new(67, 80))
+        Rectangle::new(Point::new(x, y), Size::new(74, 102))
+            .into_styled(cartridge)
+            .draw(&mut self.display)?;
+
+        Rectangle::new(Point::new(x + 74, y + 4), Size::new(8, 98))
             .into_styled(cartridge)
             .draw(&mut self.display)?;
 
         let tga = game.get_image();
 
-        Image::new(&tga, Point::new(x + 5, y + 20)).draw(&mut self.display)?;
+        Image::new(&tga, Point::new(x + 10, y + 30)).draw(&mut self.display)?;
 
         Ok(())
     }
