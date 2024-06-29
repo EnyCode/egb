@@ -25,7 +25,7 @@ use tinytga::Tga;
 use crate::games::Game;
 
 const PICO_FONT: MonoFont = MonoFont {
-    image: ImageRaw::new(include_bytes!("font.raw"), 128),
+    image: ImageRaw::new(include_bytes!("assets/font.raw"), 128),
     glyph_mapping: &StrGlyphMapping::new(
         "  ! \" # $ % & ' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ? @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ \\ ] ^ _ ` a b c d e f g h i j k l m n o p q r s t u v w x y z { | } ~ \u{80} \u{81}\u{82}\u{83}\u{84}\u{85}\u{86}\u{87}\u{88}\u{89}\u{8A}\u{8B}\u{8C}\u{8D}\u{8E}\u{8F}\u{90}\u{91}\u{92}\u{93}\u{94}\u{95}\u{96}\u{97}\u{98}\u{99}\u{9A}\u{9B}\u{9C}\u{9D}\u{9E}\u{9F}\u{A0}\u{A1}\u{A2}\u{A3}\u{A4}\u{A5}\u{A6}\u{A7}\u{A8}\u{A9}\u{AA}\u{AB}\u{AC}\u{AD}\u{AE}\u{AF}\u{B0}\u{B1}\u{B2}\u{B3}\u{B4}\u{B5}\u{B6}\u{B7}\u{B8}\u{B9}\u{BA}\u{BB}\u{BC}",
         0,
@@ -37,7 +37,8 @@ const PICO_FONT: MonoFont = MonoFont {
     strikethrough: DecorationDimensions::default_strikethrough(3),
 };
 
-const GAMEBOY_CARTRIDGE: &'static [u8; 4193] = include_bytes!("gameboy_cartridge.tga");
+const GB_CARTRIDGE: &'static [u8; 4193] = include_bytes!("assets/cartridges/gb.tga");
+const GBA_CARTRIDGE: &'static [u8; 4800] = include_bytes!("assets/cartridges/gba.tga");
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Button {
@@ -209,7 +210,7 @@ where
             (self.size.height as i32 - 91) / 2,
         );
 
-        let cartridge: Tga<Rgb565> = Tga::from_slice(GAMEBOY_CARTRIDGE).unwrap();
+        let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
         Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
 
         let tga = game.get_image();
