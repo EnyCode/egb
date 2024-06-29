@@ -15,6 +15,7 @@ use embedded_graphics::{
     mono_font::MonoTextStyle,
     text::{Text, TextStyle},
 };
+use embedded_graphics_simulator::{BinaryColorTheme, OutputSettingsBuilder, Window};
 
 const PICO_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("font.raw"), 128),
@@ -41,14 +42,38 @@ pub enum Button {
     Select,
 }
 
-pub struct GUI {
+impl Into<String> for Button {
+    fn into(self) -> String {
+        match self {
+            Button::Up => "\u{A9}\u{AA}",
+            Button::Down => "\u{87}\u{88}",
+            Button::Left => "\u{97}\u{98}",
+            Button::Right => "\u{A3}\u{A4}",
+            Button::A => "\u{B5}\u{B6}",
+            Button::B => "\u{B7}\u{B8}",
+            Button::Start => "\u{B9}\u{BA}",
+            Button::Select => "\u{BB}\u{BC}",
+        }
+        .to_owned()
+    }
+}
+
+pub struct GUI<D>
+where
+    D: DrawTarget<Color = Rgb565>,
+{
     white_char: MonoTextStyle<'static, Rgb565>,
     subtitle_char: MonoTextStyle<'static, Rgb565>,
     normal_text: TextStyle,
+    display: D,
+    size: Size,
 }
 
-impl GUI {
-    pub fn new() -> Self {
+impl<D> GUI<D>
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    pub fn new(display: D) -> Self {
         let white_char = MonoTextStyle::new(&PICO_FONT, Rgb565::WHITE);
         let subtitle_char = MonoTextStyle::new(&PICO_FONT, Rgb565::new(24, 49, 24));
         let normal_text = TextStyleBuilder::new()
@@ -59,13 +84,12 @@ impl GUI {
             white_char,
             subtitle_char,
             normal_text,
+            size: display.bounding_box().size,
+            display,
         };
     }
 
-    pub fn draw_background<D: DrawTarget<Color = Rgb565>>(
-        &self,
-        display: &mut D,
-    ) -> Result<(), D::Error> {
+    pub fn draw_background(&mut self) -> Result<(), D::Error> {
         // light gray
         let background = PrimitiveStyleBuilder::new()
             .stroke_width(0)
@@ -82,34 +106,35 @@ impl GUI {
             .fill_color(Rgb565::new(0, 1, 6))
             .build();
 
-        let size = display.bounding_box().size;
-
-        Rectangle::new(Point::zero(), size)
+        Rectangle::new(Point::zero(), self.size)
             .into_styled(background)
-            .draw(display)?;
+            .draw(&mut self.display)?;
 
-        Rectangle::new(Point::zero(), Size::new(size.width, 8))
+        Rectangle::new(Point::zero(), Size::new(self.size.width, 8))
             .into_styled(borders)
-            .draw(display)?;
+            .draw(&mut self.display)?;
 
         Rectangle::new(
-            Point::new(0, (size.height - 10).try_into().unwrap()),
-            Size::new(display.bounding_box().size.width, 10),
+            Point::new(0, (self.size.height - 10).try_into().unwrap()),
+            Size::new(self.display.bounding_box().size.width, 10),
         )
         .into_styled(borders)
-        .draw(display)?;
+        .draw(&mut self.display)?;
 
-        Rectangle::new(Point::new(0, 16), Size::new(size.width, size.height - 34))
-            .into_styled(content)
-            .draw(display)?;
+        Rectangle::new(
+            Point::new(0, 16),
+            Size::new(self.size.width, self.size.height - 34),
+        )
+        .into_styled(content)
+        .draw(&mut self.display)?;
 
         Text::with_text_style(
             "EGB v0.1",
-            Point::new(size.width as i32 - 33, size.height as i32 - 8),
+            Point::new(self.size.width as i32 - 33, self.size.height as i32 - 8),
             self.subtitle_char,
             self.normal_text,
         )
-        .draw(display)?;
+        .draw(&mut self.display)?;
 
         let mut inputs = HashMap::new();
         inputs.insert(Button::A, "Launch");
@@ -119,14 +144,31 @@ impl GUI {
 
         Text::with_text_style(
             "\u{B5}\u{B6}Launch \u{B9}\u{BA}Settings",
-            Point::new(size.width as i32 - 76, size.height as i32 - 25),
+            Point::new(self.size.width as i32 - 76, self.size.height as i32 - 25),
             self.white_char,
             self.normal_text,
         )
-        .draw(display)?;
+        .draw(&mut self.display)?;
 
         Ok(())
     }
 
-    pub fn draw_inputs(&self, inputs: HashMap<Button, &str>) {}
+    pub fn draw_inputs(&mut self, inputs: HashMap<Button, &str>) -> Result<(), D::Error>
+    where
+        D: DrawTarget<Color = Rgb565>,
+    {
+        let mut string = inputs.iter().fold(String::new(), |acc, (button, text)| {
+            format!("{}{}{}", acc, <Button as Into<String>>::into(*button), text)
+        });
+
+        Text::with_text_style(
+            &string,
+            Point::new(self.size.width as i32 - 76, self.size.height as i32 - 25),
+            self.white_char,
+            self.normal_text,
+        )
+        .draw(&mut self.display)?;
+
+        Ok(())
+    }
 }

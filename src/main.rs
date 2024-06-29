@@ -9,10 +9,10 @@ mod util;
 
 fn main() -> Result<(), core::convert::Infallible> {
     util::write_font();
-    let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(240, 160));
-    let gui = gui::GUI::new();
+    let display = SimulatorDisplay::<Rgb565>::new(Size::new(240, 160));
+    let mut gui = gui::GUI::new(display.clone());
 
-    gui.draw_background(&mut display)?;
+    gui.draw_background()?;
 
     let output_settings = OutputSettingsBuilder::new()
         .theme(BinaryColorTheme::Default)
