@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::HashMap;
 use std::iter::Map;
 use std::str::FromStr;
@@ -121,7 +122,7 @@ where
             size: display.bounding_box().size,
             display,
             games,
-            selected_game: 0,
+            selected_game: 1,
             window: None,
         };
     }
@@ -221,10 +222,8 @@ where
             to_draw.push(&self.games[self.selected_game as usize + 1]);
         }
         for (i, game) in to_draw.into_iter().enumerate() {
-            println!("{}", i);
             match game.get_console() {
                 GameConsole::GameBoy => {
-                    println!("gameboy");
                     let (mut x, mut y) = ((0 - 100) / 2, (self.size.height as i32 - 70) / 2);
                     if i == 1 {
                         (x, y) = (
@@ -275,11 +274,16 @@ where
         Ok(())
     }
 
-    pub fn update_input(&mut self, input: &InputStatus) {
+    pub fn update_input(&mut self, input: &InputStatus) -> Result<(), D::Error> {
         if input.is_pressed(Button::Up) {
             self.selected_game = self.selected_game.saturating_sub(1);
+            self.display.clear(Rgb565::BLACK)?;
+            self.draw_background()?;
         } else if input.is_pressed(Button::Down) {
-            self.selected_game = self.selected_game.saturating_add(1);
+            self.selected_game = min(self.selected_game + 1, self.games.len() as u32 - 1);
+            self.display.clear(Rgb565::BLACK)?;
+            self.draw_background()?;
         }
+        Ok(())
     }
 }

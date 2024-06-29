@@ -43,11 +43,18 @@ fn main() -> Result<(), core::convert::Infallible> {
                 } => {
                     input.key_down(keycode);
                 }
+                SimulatorEvent::KeyUp {
+                    keycode,
+                    keymod,
+                    repeat,
+                } => {
+                    input.key_up(keycode);
+                }
                 SimulatorEvent::Quit => break 'running,
                 _ => {}
             }
         }
-        gui.update_input(&input);
+        gui.update_input(&input).unwrap();
     }
 
     Ok(())
