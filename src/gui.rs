@@ -22,7 +22,7 @@ use embedded_graphics_simulator::{
 };
 use tinytga::Tga;
 
-use crate::games::Game;
+use crate::games::{Game, GameConsole};
 
 const PICO_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("assets/font.raw"), 128),
@@ -38,7 +38,7 @@ const PICO_FONT: MonoFont = MonoFont {
 };
 
 const GB_CARTRIDGE: &'static [u8; 4193] = include_bytes!("assets/cartridges/gb.tga");
-const GBA_CARTRIDGE: &'static [u8; 4800] = include_bytes!("assets/cartridges/gba.tga");
+const GBA_CARTRIDGE: &'static [u8; 3813] = include_bytes!("assets/cartridges/gba.tga");
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Button {
@@ -204,18 +204,36 @@ where
 
     pub fn draw_games(&mut self) -> Result<(), D::Error> {
         let game = &self.games[self.selected_game as usize];
+        match game.get_console() {
+            GameConsole::GameBoy => {
+                let (x, y) = (
+                    (self.size.width as i32 - 82) / 2,
+                    (self.size.height as i32 - 91) / 2,
+                );
 
-        let (x, y) = (
-            (self.size.width as i32 - 82) / 2,
-            (self.size.height as i32 - 91) / 2,
-        );
+                let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
+                Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
 
-        let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
-        Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+                let tga = game.get_image();
 
-        let tga = game.get_image();
+                Image::new(&tga, Point::new(x + 10, y + 26)).draw(&mut self.display)?;
+            }
+            GameConsole::GameBoyColor => todo!(),
+            GameConsole::GameBoyAdvanced => {
+                let (x, y) = (
+                    (self.size.width as i32 - 106) / 2,
+                    (self.size.height as i32 - 61) / 2,
+                );
 
-        Image::new(&tga, Point::new(x + 10, y + 26)).draw(&mut self.display)?;
+                let cartridge: Tga<Rgb565> = Tga::from_slice(GBA_CARTRIDGE).unwrap();
+                Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+
+                let tga = game.get_image();
+
+                Image::new(&tga, Point::new(x + 15, y + 14)).draw(&mut self.display)?;
+            }
+            GameConsole::Sprig => todo!(),
+        }
 
         Ok(())
     }

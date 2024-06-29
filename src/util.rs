@@ -60,6 +60,6 @@ const DATA: &[u8] = &[
 ];
 
 pub fn write_font() {
-    let mut file = File::create("src/font.raw").unwrap();
+    let mut file = File::create("src/assets/font.raw").unwrap();
     file.write_all(DATA).unwrap();
 }
