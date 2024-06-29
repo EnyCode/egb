@@ -7,7 +7,9 @@ use embedded_graphics::image::ImageRaw;
 use embedded_graphics::mono_font::mapping::StrGlyphMapping;
 use embedded_graphics::mono_font::{DecorationDimensions, MonoFont};
 use embedded_graphics::pixelcolor::{Rgb565, RgbColor};
-use embedded_graphics::primitives::{Primitive, PrimitiveStyleBuilder, Rectangle};
+use embedded_graphics::primitives::{
+    CornerRadii, Primitive, PrimitiveStyleBuilder, Rectangle, RoundedRectangle,
+};
 use embedded_graphics::text::{Alignment, Baseline, TextStyleBuilder};
 use embedded_graphics::Drawable;
 use embedded_graphics::{
@@ -15,7 +17,9 @@ use embedded_graphics::{
     mono_font::MonoTextStyle,
     text::{Text, TextStyle},
 };
-use embedded_graphics_simulator::{BinaryColorTheme, OutputSettingsBuilder, Window};
+use embedded_graphics_simulator::{
+    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
+};
 
 const PICO_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("font.raw"), 128),
@@ -65,8 +69,20 @@ where
     white_char: MonoTextStyle<'static, Rgb565>,
     subtitle_char: MonoTextStyle<'static, Rgb565>,
     normal_text: TextStyle,
+    centered_text: TextStyle,
     display: D,
     size: Size,
+}
+
+impl GUI<SimulatorDisplay<Rgb565>> {
+    pub fn update(&self) {
+        let output_settings = OutputSettingsBuilder::new()
+            .theme(BinaryColorTheme::Default)
+            .pixel_spacing(0)
+            .scale(3)
+            .build();
+        Window::new("Eny's GameBoy", &output_settings).show_static(&self.display);
+    }
 }
 
 impl<D> GUI<D>
@@ -80,10 +96,14 @@ where
             .baseline(Baseline::Alphabetic)
             .alignment(Alignment::Left)
             .build();
+        let mut centered_text = normal_text.clone();
+        centered_text.alignment = Alignment::Center;
+
         return GUI {
             white_char,
             subtitle_char,
             normal_text,
+            centered_text,
             size: display.bounding_box().size,
             display,
         };
@@ -137,18 +157,11 @@ where
         .draw(&mut self.display)?;
 
         let mut inputs = HashMap::new();
-        inputs.insert(Button::A, "Launch");
         inputs.insert(Button::Start, "Settings");
+        inputs.insert(Button::A, "Launch");
 
-        self.draw_inputs(inputs);
-
-        Text::with_text_style(
-            "\u{B5}\u{B6}Launch \u{B9}\u{BA}Settings",
-            Point::new(self.size.width as i32 - 76, self.size.height as i32 - 25),
-            self.white_char,
-            self.normal_text,
-        )
-        .draw(&mut self.display)?;
+        let _ = self.draw_inputs(inputs)?;
+        self.draw_games();
 
         Ok(())
     }
@@ -157,16 +170,49 @@ where
     where
         D: DrawTarget<Color = Rgb565>,
     {
-        let mut string = inputs.iter().fold(String::new(), |acc, (button, text)| {
-            format!("{}{}{}", acc, <Button as Into<String>>::into(*button), text)
+        let string = inputs.iter().fold(String::new(), |acc, (button, text)| {
+            format!(
+                "{}{}{} ",
+                acc,
+                <Button as Into<String>>::into(*button),
+                text
+            )
         });
 
         Text::with_text_style(
             &string,
-            Point::new(self.size.width as i32 - 76, self.size.height as i32 - 25),
+            Point::new((self.size.width / 2) as i32, self.size.height as i32 - 25),
             self.white_char,
-            self.normal_text,
+            self.centered_text,
         )
+        .draw(&mut self.display)?;
+
+        Ok(())
+    }
+
+    pub fn draw_games(&mut self) -> Result<(), D::Error> {
+        let borders = PrimitiveStyleBuilder::new()
+            .stroke_width(0)
+            .fill_color(Rgb565::new(25, 50, 25))
+            .build();
+
+        let fill = PrimitiveStyleBuilder::new()
+            .stroke_width(0)
+            .fill_color(Rgb565::new(20, 40, 20))
+            .build();
+
+        RoundedRectangle::new(
+            Rectangle::new(Point::new(20, 20), Size::new(36, 56)),
+            CornerRadii::new(Size::new(4, 4)),
+        )
+        .into_styled(borders)
+        .draw(&mut self.display)?;
+
+        RoundedRectangle::new(
+            Rectangle::new(Point::new(21, 21), Size::new(34, 54)),
+            CornerRadii::new(Size::new(4, 4)),
+        )
+        .into_styled(fill)
         .draw(&mut self.display)?;
 
         Ok(())
