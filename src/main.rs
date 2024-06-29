@@ -1,12 +1,14 @@
 use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
 use embedded_graphics_simulator::{
-    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
+    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 use games::Game;
+use input::InputStatus;
 use tinytga::Tga;
 
 mod games;
 mod gui;
+mod input;
 mod util;
 
 fn main() -> Result<(), core::convert::Infallible> {
@@ -25,8 +27,28 @@ fn main() -> Result<(), core::convert::Infallible> {
     let mut gui = gui::GUI::new(display, games);
 
     gui.draw_background()?;
+    gui.create_window();
 
-    gui.update();
+    let mut input = InputStatus::default();
+
+    'running: loop {
+        gui.update();
+
+        for event in gui.events().unwrap() {
+            match event {
+                SimulatorEvent::KeyDown {
+                    keycode,
+                    keymod,
+                    repeat,
+                } => {
+                    input.key_down(keycode);
+                }
+                SimulatorEvent::Quit => break 'running,
+                _ => {}
+            }
+        }
+        gui.update_input(&input);
+    }
 
     Ok(())
 }

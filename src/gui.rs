@@ -18,11 +18,12 @@ use embedded_graphics::{
     text::{Text, TextStyle},
 };
 use embedded_graphics_simulator::{
-    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
+    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 use tinytga::Tga;
 
 use crate::games::{Game, GameConsole};
+use crate::input::{Button, InputStatus};
 
 const PICO_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("assets/font.raw"), 128),
@@ -39,18 +40,6 @@ const PICO_FONT: MonoFont = MonoFont {
 
 const GB_CARTRIDGE: &'static [u8; 4193] = include_bytes!("assets/cartridges/gb.tga");
 const GBA_CARTRIDGE: &'static [u8; 3813] = include_bytes!("assets/cartridges/gba.tga");
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub enum Button {
-    Up,
-    Down,
-    Left,
-    Right,
-    A,
-    B,
-    Start,
-    Select,
-}
 
 impl Into<String> for Button {
     fn into(self) -> String {
@@ -82,16 +71,31 @@ where
     // TODO: move to a global config type thing
     games: Vec<Game>,
     selected_game: u32,
+    window: Option<Window>,
 }
 
 impl GUI<SimulatorDisplay<Rgb565>> {
-    pub fn update(&self) {
+    pub fn create_window(&mut self) {
         let output_settings = OutputSettingsBuilder::new()
             .theme(BinaryColorTheme::Default)
             .pixel_spacing(0)
             .scale(3)
             .build();
-        Window::new("Eny's GameBoy", &output_settings).show_static(&self.display);
+        self.window = Some(Window::new("Eny's GameBoy", &output_settings))
+    }
+
+    pub fn update(&mut self) {
+        if self.window.is_some() {
+            self.window.as_mut().unwrap().update(&mut self.display);
+        }
+    }
+
+    pub fn events(&mut self) -> Option<impl Iterator<Item = SimulatorEvent> + '_> {
+        if self.window.is_some() {
+            let events = (&mut self.window).as_mut().unwrap().events();
+            return Some(events);
+        }
+        None
     }
 }
 
@@ -118,6 +122,7 @@ where
             display,
             games,
             selected_game: 0,
+            window: None,
         };
     }
 
@@ -203,38 +208,78 @@ where
     }
 
     pub fn draw_games(&mut self) -> Result<(), D::Error> {
-        let game = &self.games[self.selected_game as usize];
-        match game.get_console() {
-            GameConsole::GameBoy => {
-                let (x, y) = (
-                    (self.size.width as i32 - 82) / 2,
-                    (self.size.height as i32 - 91) / 2,
-                );
+        let mut to_draw = vec![];
+        let game = Game::new_placeholder();
 
-                let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
-                Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+        if self.selected_game > 0 {
+            to_draw.push(&self.games[self.selected_game as usize - 1]);
+        } else {
+            to_draw.push(&game);
+        }
+        to_draw.push(&self.games[self.selected_game as usize]);
+        if self.selected_game < self.games.len() as u32 - 1 {
+            to_draw.push(&self.games[self.selected_game as usize + 1]);
+        }
+        for (i, game) in to_draw.into_iter().enumerate() {
+            println!("{}", i);
+            match game.get_console() {
+                GameConsole::GameBoy => {
+                    println!("gameboy");
+                    let (mut x, mut y) = ((0 - 100) / 2, (self.size.height as i32 - 70) / 2);
+                    if i == 1 {
+                        (x, y) = (
+                            (self.size.width as i32 - 82) / 2,
+                            (self.size.height as i32 - 91) / 2,
+                        );
+                    } else if i == 2 {
+                        (x, y) = (
+                            self.size.width as i32 - 50,
+                            (self.size.height as i32 - 70) / 2,
+                        );
+                    }
 
-                let tga = game.get_image();
+                    let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
+                    Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
 
-                Image::new(&tga, Point::new(x + 10, y + 26)).draw(&mut self.display)?;
+                    let tga = game.get_image();
+
+                    Image::new(&tga, Point::new(x + 10, y + 26)).draw(&mut self.display)?;
+                }
+                GameConsole::GameBoyColor => todo!(),
+                GameConsole::GameBoyAdvanced => {
+                    let (mut x, mut y) = ((0 - 106) / 2, (self.size.height as i32 - 70) / 2);
+                    if i == 1 {
+                        (x, y) = (
+                            (self.size.width as i32 - 106) / 2,
+                            (self.size.height as i32 - 61) / 2,
+                        );
+                    } else if i == 2 {
+                        (x, y) = (
+                            self.size.width as i32 - 50,
+                            (self.size.height as i32 - 70) / 2,
+                        );
+                    }
+
+                    let cartridge: Tga<Rgb565> = Tga::from_slice(GBA_CARTRIDGE).unwrap();
+                    Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+
+                    let tga = game.get_image();
+
+                    Image::new(&tga, Point::new(x + 15, y + 14)).draw(&mut self.display)?;
+                }
+                GameConsole::Sprig => todo!(),
+                _ => {}
             }
-            GameConsole::GameBoyColor => todo!(),
-            GameConsole::GameBoyAdvanced => {
-                let (x, y) = (
-                    (self.size.width as i32 - 106) / 2,
-                    (self.size.height as i32 - 61) / 2,
-                );
-
-                let cartridge: Tga<Rgb565> = Tga::from_slice(GBA_CARTRIDGE).unwrap();
-                Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
-
-                let tga = game.get_image();
-
-                Image::new(&tga, Point::new(x + 15, y + 14)).draw(&mut self.display)?;
-            }
-            GameConsole::Sprig => todo!(),
         }
 
         Ok(())
+    }
+
+    pub fn update_input(&mut self, input: &InputStatus) {
+        if input.is_pressed(Button::Up) {
+            self.selected_game = self.selected_game.saturating_sub(1);
+        } else if input.is_pressed(Button::Down) {
+            self.selected_game = self.selected_game.saturating_add(1);
+        }
     }
 }

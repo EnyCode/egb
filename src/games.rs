@@ -6,6 +6,7 @@ pub enum GameConsole {
     GameBoyColor,
     GameBoyAdvanced,
     Sprig,
+    Placeholder,
 }
 
 pub struct Game {
@@ -44,6 +45,14 @@ impl Game {
             title,
             console: GameConsole::Sprig,
             image,
+        }
+    }
+
+    pub fn new_placeholder() -> Game {
+        Game {
+            title: "Placeholder",
+            console: GameConsole::Placeholder,
+            image: Tga::from_slice(include_bytes!("assets/empty.tga")).unwrap(),
         }
     }
 
