@@ -20,6 +20,7 @@ use embedded_graphics::{
 use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
+use tinytga::Tga;
 
 use crate::games::Game;
 
@@ -35,6 +36,8 @@ const PICO_FONT: MonoFont = MonoFont {
     underline: DecorationDimensions::default_underline(6),
     strikethrough: DecorationDimensions::default_strikethrough(3),
 };
+
+const GAMEBOY_CARTRIDGE: &'static [u8; 4193] = include_bytes!("gameboy_cartridge.tga");
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Button {
@@ -201,27 +204,17 @@ where
     pub fn draw_games(&mut self) -> Result<(), D::Error> {
         let game = &self.games[self.selected_game as usize];
 
-        let cartridge = PrimitiveStyleBuilder::new()
-            .stroke_width(0)
-            .fill_color(Rgb565::new(24, 49, 24))
-            .build();
-
         let (x, y) = (
             (self.size.width as i32 - 82) / 2,
-            (self.size.height as i32 - 102) / 2,
+            (self.size.height as i32 - 91) / 2,
         );
 
-        Rectangle::new(Point::new(x, y), Size::new(74, 102))
-            .into_styled(cartridge)
-            .draw(&mut self.display)?;
-
-        Rectangle::new(Point::new(x + 74, y + 4), Size::new(8, 98))
-            .into_styled(cartridge)
-            .draw(&mut self.display)?;
+        let cartridge: Tga<Rgb565> = Tga::from_slice(GAMEBOY_CARTRIDGE).unwrap();
+        Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
 
         let tga = game.get_image();
 
-        Image::new(&tga, Point::new(x + 10, y + 30)).draw(&mut self.display)?;
+        Image::new(&tga, Point::new(x + 10, y + 26)).draw(&mut self.display)?;
 
         Ok(())
     }
