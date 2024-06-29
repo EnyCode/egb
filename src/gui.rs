@@ -3,7 +3,7 @@ use std::iter::Map;
 use std::str::FromStr;
 
 use embedded_graphics::geometry::{Point, Size};
-use embedded_graphics::image::ImageRaw;
+use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::mono_font::mapping::StrGlyphMapping;
 use embedded_graphics::mono_font::{DecorationDimensions, MonoFont};
 use embedded_graphics::pixelcolor::{Rgb565, RgbColor};
@@ -20,6 +20,8 @@ use embedded_graphics::{
 use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
+
+use crate::games::Game;
 
 const PICO_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("font.raw"), 128),
@@ -66,12 +68,16 @@ pub struct GUI<D>
 where
     D: DrawTarget<Color = Rgb565>,
 {
+    // TODO: move some text styles over if only used once
     white_char: MonoTextStyle<'static, Rgb565>,
     subtitle_char: MonoTextStyle<'static, Rgb565>,
     normal_text: TextStyle,
     centered_text: TextStyle,
     display: D,
     size: Size,
+    // TODO: move to a global config type thing
+    games: Vec<Game>,
+    selected_game: u32,
 }
 
 impl GUI<SimulatorDisplay<Rgb565>> {
@@ -89,7 +95,7 @@ impl<D> GUI<D>
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    pub fn new(display: D) -> Self {
+    pub fn new(display: D, games: Vec<Game>) -> Self {
         let white_char = MonoTextStyle::new(&PICO_FONT, Rgb565::WHITE);
         let subtitle_char = MonoTextStyle::new(&PICO_FONT, Rgb565::new(24, 49, 24));
         let normal_text = TextStyleBuilder::new()
@@ -106,6 +112,8 @@ where
             centered_text,
             size: display.bounding_box().size,
             display,
+            games,
+            selected_game: 0,
         };
     }
 
@@ -191,29 +199,25 @@ where
     }
 
     pub fn draw_games(&mut self) -> Result<(), D::Error> {
-        let borders = PrimitiveStyleBuilder::new()
+        let game = &self.games[self.selected_game as usize];
+
+        let cartridge = PrimitiveStyleBuilder::new()
             .stroke_width(0)
-            .fill_color(Rgb565::new(25, 50, 25))
+            .fill_color(Rgb565::new(24, 49, 24))
             .build();
 
-        let fill = PrimitiveStyleBuilder::new()
-            .stroke_width(0)
-            .fill_color(Rgb565::new(20, 40, 20))
-            .build();
+        let (x, y) = (
+            (self.size.width as i32 - 72) / 2,
+            (self.size.height as i32 - 85) / 2,
+        );
 
-        RoundedRectangle::new(
-            Rectangle::new(Point::new(20, 20), Size::new(36, 56)),
-            CornerRadii::new(Size::new(4, 4)),
-        )
-        .into_styled(borders)
-        .draw(&mut self.display)?;
+        Rectangle::new(Point::new(x, y), Size::new(67, 80))
+            .into_styled(cartridge)
+            .draw(&mut self.display)?;
 
-        RoundedRectangle::new(
-            Rectangle::new(Point::new(21, 21), Size::new(34, 54)),
-            CornerRadii::new(Size::new(4, 4)),
-        )
-        .into_styled(fill)
-        .draw(&mut self.display)?;
+        let tga = game.get_image();
+
+        Image::new(&tga, Point::new(x + 5, y + 20)).draw(&mut self.display)?;
 
         Ok(())
     }
