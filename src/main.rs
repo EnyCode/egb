@@ -9,6 +9,7 @@ use tinytga::Tga;
 mod games;
 mod gui;
 mod input;
+mod nes;
 mod util;
 
 fn main() -> Result<(), core::convert::Infallible> {
