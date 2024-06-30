@@ -157,7 +157,55 @@ lazy_static! {
         OpCode::new(0xC4, "CPY", 2, 3, AddressingMode::ZeroPage),
         OpCode::new(0xCC, "CPY", 3, 4, AddressingMode::Absolute),
 
+        OpCode::new(0x4C, "JMP", 3, 3, AddressingMode::Absolute), // JMP is special so we just use none addressing
+        OpCode::new(0x6C, "JMP", 3, 5, AddressingMode::NoneAddressing),
+
+        OpCode::new(0x20, "JSR", 3, 6, AddressingMode::Absolute),
+        OpCode::new(0x60, "RTS", 1, 6, AddressingMode::NoneAddressing),
+
+        OpCode::new(0x40, "RTI", 1, 6, AddressingMode::NoneAddressing),
+
+        OpCode::new(0xD0, "BNE", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+        OpCode::new(0x70, "BVS", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+        OpCode::new(0x50, "BVC", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+        OpCode::new(0x10, "BPL", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+        OpCode::new(0x30, "BMI", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+        OpCode::new(0xF0, "BEQ", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+        OpCode::new(0xB0, "BCS", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+        OpCode::new(0x90, "BCC", 2, 2 /* +1 if branch succeeds, +2 if to a new page */, AddressingMode::NoneAddressing),
+
+        OpCode::new(0x24, "BIT", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x2C, "BIT", 3, 4, AddressingMode::Absolute),
+
+        OpCode::new(0x86, "STX", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x96, "STX", 2, 4, AddressingMode::ZeroPage_Y),
+        OpCode::new(0x8E, "STX", 3, 4, AddressingMode::Absolute),
+
+        OpCode::new(0x84, "STY", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x94, "STY", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0x8C, "STY", 3, 4, AddressingMode::Absolute),
+
+        OpCode::new(0xA2, "LDX", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xA6, "LDX", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0xB6, "LDX", 2, 4, AddressingMode::ZeroPage_Y),
+        OpCode::new(0xAE, "LDX", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0xBE, "LDX", 3, 4 /* +1 if page crossed */, AddressingMode::Absolute_Y),
+
+        OpCode::new(0xA0, "LDX", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xA4, "LDX", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0xB4, "LDX", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0xAC, "LDX", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0xBC, "LDX", 3, 4 /* +1 if page crossed */, AddressingMode::Absolute_X),
+
+        OpCode::new(0xA8, "TAY", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0x98, "TYA", 1, 2, AddressingMode::NoneAddressing),
+
+        OpCode::new(0xBA, "TSX", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0x9A, "TXS", 1, 2, AddressingMode::NoneAddressing),
+
+        OpCode::new(0x8A, "TXA", 1, 2, AddressingMode::NoneAddressing),
         OpCode::new(0xAA, "TAX", 1, 2, AddressingMode::NoneAddressing),
+
         OpCode::new(0xE8, "INX", 1, 2, AddressingMode::NoneAddressing),
         OpCode::new(0x00, "BRK", 1, 7, AddressingMode::NoneAddressing),
     ];
