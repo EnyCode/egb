@@ -5,6 +5,7 @@ pub enum GameConsole {
     GameBoy,
     GameBoyColor,
     GameBoyAdvanced,
+    NES,
     Sprig,
     Placeholder,
 }
@@ -36,6 +37,14 @@ impl Game {
         Game {
             title,
             console: GameConsole::GameBoyAdvanced,
+            image,
+        }
+    }
+
+    pub fn new_nes(title: &'static str, image: Tga<'static, Rgb565>) -> Game {
+        Game {
+            title,
+            console: GameConsole::NES,
             image,
         }
     }

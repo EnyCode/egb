@@ -41,6 +41,7 @@ const PICO_FONT: MonoFont = MonoFont {
 
 const GB_CARTRIDGE: &'static [u8; 4193] = include_bytes!("assets/cartridges/gb.tga");
 const GBA_CARTRIDGE: &'static [u8; 3813] = include_bytes!("assets/cartridges/gba.tga");
+const NES_CARTRIDGE: &'static [u8; 4709] = include_bytes!("assets/cartridges/nes.tga");
 
 impl Into<String> for Button {
     fn into(self) -> String {
@@ -266,6 +267,27 @@ where
 
                     Image::new(&tga, Point::new(x + 15, y + 14)).draw(&mut self.display)?;
                 }
+                GameConsole::NES => {
+                    let (mut x, mut y) = ((0 - 100) / 2, (self.size.height as i32 - 70) / 2);
+                    if i == 1 {
+                        (x, y) = (
+                            (self.size.width as i32 - 82) / 2,
+                            (self.size.height as i32 - 91) / 2,
+                        );
+                    } else if i == 2 {
+                        (x, y) = (
+                            self.size.width as i32 - 50,
+                            (self.size.height as i32 - 70) / 2,
+                        );
+                    }
+
+                    let cartridge: Tga<Rgb565> = Tga::from_slice(NES_CARTRIDGE).unwrap();
+                    Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+
+                    let tga = game.get_image();
+
+                    Image::new(&tga, Point::new(x + 38, y + 1)).draw(&mut self.display)?;
+                }
                 GameConsole::Sprig => todo!(),
                 _ => {}
             }
@@ -275,11 +297,11 @@ where
     }
 
     pub fn update_input(&mut self, input: &InputStatus) -> Result<(), D::Error> {
-        if input.is_pressed(Button::Up) {
+        if input.just_released(Button::Left) || input.is_repeated(Button::Left) {
             self.selected_game = self.selected_game.saturating_sub(1);
             self.display.clear(Rgb565::BLACK)?;
             self.draw_background()?;
-        } else if input.is_pressed(Button::Down) {
+        } else if input.just_released(Button::Right) || input.is_repeated(Button::Right) {
             self.selected_game = min(self.selected_game + 1, self.games.len() as u32 - 1);
             self.display.clear(Rgb565::BLACK)?;
             self.draw_background()?;

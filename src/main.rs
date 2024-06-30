@@ -21,6 +21,10 @@ fn main() -> Result<(), core::convert::Infallible> {
         "Super Mario Land",
         Tga::from_slice(include_bytes!("assets/games/super_mario_land.tga")).unwrap(),
     ));
+    games.push(Game::new_nes(
+        "Super Mario Bros",
+        Tga::from_slice(include_bytes!("assets/games/super_mario_bros.tga")).unwrap(),
+    ));
 
     util::write_font();
     let display = SimulatorDisplay::<Rgb565>::new(Size::new(240, 160));
@@ -33,6 +37,7 @@ fn main() -> Result<(), core::convert::Infallible> {
 
     'running: loop {
         gui.update();
+        input.update();
 
         for event in gui.events().unwrap() {
             match event {
@@ -41,7 +46,7 @@ fn main() -> Result<(), core::convert::Infallible> {
                     keymod,
                     repeat,
                 } => {
-                    input.key_down(keycode);
+                    input.key_down(keycode, repeat);
                 }
                 SimulatorEvent::KeyUp {
                     keycode,
