@@ -9,8 +9,11 @@ use embedded_graphics_simulator::{
 };
 use games::Game;
 use input::InputStatus;
-use nes::cpu::CPU;
-use nes::cpu::{self, Mem};
+use nes::{cartridge::Rom, cpu::CPU};
+use nes::{
+    cpu::{self, Mem},
+    trace::trace,
+};
 use rand::Rng;
 use tinytga::Tga;
 
@@ -108,8 +111,9 @@ fn main() -> Result<(), core::convert::Infallible> {
     //gui.create_window();
 
     let mut input = InputStatus::default();
-
-    let mut cpu = CPU::new();
+    let bytes: Vec<u8> = std::fs::read("src/nestest.nes").unwrap();
+    let rom = Rom::new(&bytes).unwrap();
+    let mut cpu = CPU::new(rom);
     cpu.load(game_code);
     cpu.reset();
 
@@ -117,7 +121,8 @@ fn main() -> Result<(), core::convert::Infallible> {
     let mut rng = rand::thread_rng();
 
     cpu.run_with_callback(move |cpu| {
-        cpu.mem_write(0xFE, rng.gen_range(1..16));
+        println!("{}", trace(cpu));
+        /*cpu.mem_write(0xFE, rng.gen_range(1..16));
 
         if read_screen_state(cpu, &mut screen_state) {
             Image::new(&ImageRaw::<Rgb565>::new(&screen_state, 32), Point::zero())
@@ -147,8 +152,7 @@ fn main() -> Result<(), core::convert::Infallible> {
                 }
                 _ => (),
             }
-        }
-
+        }*/
         std::thread::sleep(std::time::Duration::new(0, 70_000));
     });
 
