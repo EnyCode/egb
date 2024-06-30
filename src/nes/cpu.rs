@@ -99,7 +99,7 @@ impl CPU {
     }
 
     fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
-        match mode {
+        let out = match mode {
             AddressingMode::Immediate => self.program_counter,
 
             AddressingMode::ZeroPage => self.mem_read(self.program_counter) as u16,
@@ -149,7 +149,12 @@ impl CPU {
             AddressingMode::NoneAddressing => {
                 panic!("mode {:?} is not supported", mode);
             }
+        };
+        if 0x200 <= out && out < 600 {
+            println!("------------------------------operand address: {:x}", out);
         }
+
+        out
     }
 
     pub fn reset(&mut self) {
@@ -226,6 +231,7 @@ impl CPU {
     // #region shortcuts
     pub fn load_and_run(&mut self, program: Vec<u8>) {
         self.load(program);
+        self.reset();
         self.run();
     }
 
@@ -614,6 +620,7 @@ impl CPU {
 
         loop {
             callback(self);
+            println!("program counter @ {:x}", self.program_counter);
             let code = self.mem_read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
@@ -621,6 +628,8 @@ impl CPU {
             let opcode = opcodes
                 .get(&code)
                 .expect(&format!("OpCode {:x} is not recognized", code));
+
+            println!("executing {}", opcode.mnemonic);
 
             match code {
                 // #region Load/Store Operations
