@@ -4,7 +4,8 @@ use embedded_graphics::{
     prelude::*,
 };
 use embedded_graphics_simulator::{
-    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
+    sdl2::Keycode, BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent,
+    Window,
 };
 use games::Game;
 use input::InputStatus;
@@ -100,6 +101,7 @@ fn main() -> Result<(), core::convert::Infallible> {
         .scale(10)
         .build();
     let mut window = Window::new("Snake", &output_settings);
+    window.update(&display);
     //let mut gui = gui::GUI::new(display, games);
 
     //gui.draw_background()?;
@@ -116,7 +118,6 @@ fn main() -> Result<(), core::convert::Infallible> {
 
     cpu.run_with_callback(move |cpu| {
         cpu.mem_write(0xFE, rng.gen_range(1..16));
-        cpu.mem_write(0xff, 0x61);
 
         if read_screen_state(cpu, &mut screen_state) {
             Image::new(&ImageRaw::<Rgb565>::new(&screen_state, 32), Point::zero())
@@ -124,7 +125,31 @@ fn main() -> Result<(), core::convert::Infallible> {
                 .unwrap();
             window.update(&display);
         }
-        ::std::thread::sleep(std::time::Duration::new(0, 70_000));
+
+        for event in window.events() {
+            match event {
+                SimulatorEvent::Quit => cpu.program_counter = 0x735,
+                SimulatorEvent::KeyDown {
+                    keycode,
+                    keymod,
+                    repeat,
+                } => {
+                    let code = match keycode {
+                        Keycode::W => 0x77,
+                        Keycode::A => 0x61,
+                        Keycode::S => 0x73,
+                        Keycode::D => 0x64,
+                        _ => 0,
+                    };
+                    if code != 0 {
+                        cpu.mem_write(0xFF, code);
+                    }
+                }
+                _ => (),
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::new(0, 70_000));
     });
 
     /*'running: loop {
