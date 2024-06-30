@@ -150,9 +150,6 @@ impl CPU {
                 panic!("mode {:?} is not supported", mode);
             }
         };
-        if 0x200 <= out && out < 600 {
-            println!("------------------------------operand address: {:x}", out);
-        }
 
         out
     }
@@ -577,8 +574,11 @@ impl CPU {
     // #region Branches
     fn branch(&mut self, condition: bool) {
         if condition {
-            let jump = self.mem_read(self.program_counter) as u16;
-            self.program_counter = self.program_counter.wrapping_add(1).wrapping_add(jump);
+            let jump: i8 = self.mem_read(self.program_counter) as i8;
+            self.program_counter = self
+                .program_counter
+                .wrapping_add(1)
+                .wrapping_add(jump as u16);
         }
     }
     // #endregion
@@ -620,7 +620,6 @@ impl CPU {
 
         loop {
             callback(self);
-            println!("program counter @ {:x}", self.program_counter);
             let code = self.mem_read(self.program_counter);
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
@@ -628,8 +627,6 @@ impl CPU {
             let opcode = opcodes
                 .get(&code)
                 .expect(&format!("OpCode {:x} is not recognized", code));
-
-            println!("executing {}", opcode.mnemonic);
 
             match code {
                 // #region Load/Store Operations

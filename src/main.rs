@@ -1,10 +1,15 @@
-use embedded_graphics::{pixelcolor::Rgb565, prelude::*};
+use embedded_graphics::{
+    image::{Image, ImageRaw},
+    pixelcolor::Rgb565,
+    prelude::*,
+};
 use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 use games::Game;
 use input::InputStatus;
-use nes::cpu::{self, Mem, CPU};
+use nes::cpu::CPU;
+use nes::cpu::{self, Mem};
 use rand::Rng;
 use tinytga::Tga;
 
@@ -20,7 +25,7 @@ fn color(byte: u8) -> Rgb565 {
         1 => Rgb565::WHITE,
         2 | 9 => Rgb565::CSS_GRAY,
         3 | 10 => Rgb565::RED,
-        4 | 11 => Rgb565::GREEN,
+        4 | 11 => Rgb565::CSS_LIME,
         5 | 12 => Rgb565::BLUE,
         6 | 13 => Rgb565::MAGENTA,
         7 | 14 => Rgb565::YELLOW,
@@ -28,16 +33,16 @@ fn color(byte: u8) -> Rgb565 {
     }
 }
 
-fn read_screen_state(cpu: &CPU, frame: &mut [u8; 32 * 3 * 32]) -> bool {
+fn read_screen_state(cpu: &CPU, frame: &mut [u8; 32 * 2 * 32]) -> bool {
     let mut frame_idx = 0;
     let mut update = false;
-    for i in 0x200..0x600 {
+    for i in 0x0200..0x0600 {
         let color_idx = cpu.mem_read(i as u16);
         let color = color(color_idx);
-        let (b1, b2) = ((
-            ((color.r() >> 3) & 0xF8) << 3 | ((color.g() >> 2) & 0xFC) >> 3,
-            (((color.g() >> 2) & 0xFC) << 5) | ((color.b() >> 3) & 0xF8),
-        ));
+        let (b1, b2) = (
+            (color.r() << 3) | (color.g() >> 2),
+            (color.g() & 0b11) << 5 | color.b(),
+        );
         if frame[frame_idx] != b1 || frame[frame_idx + 1] != b2 {
             frame[frame_idx] = b1;
             frame[frame_idx + 1] = b2;
@@ -88,13 +93,13 @@ fn main() -> Result<(), core::convert::Infallible> {
     ));
 
     util::write_font();*/
-    let display = SimulatorDisplay::<Rgb565>::new(Size::new(320, 320));
+    let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(32, 32));
     let output_settings = OutputSettingsBuilder::new()
         .theme(BinaryColorTheme::Default)
         .pixel_spacing(0)
-        .scale(3)
+        .scale(10)
         .build();
-    let window = Window::new("Snake", &output_settings);
+    let mut window = Window::new("Snake", &output_settings);
     //let mut gui = gui::GUI::new(display, games);
 
     //gui.draw_background()?;
@@ -106,13 +111,20 @@ fn main() -> Result<(), core::convert::Infallible> {
     cpu.load(game_code);
     cpu.reset();
 
-    let mut screen_state = [0 as u8; 32 * 3 * 32];
+    let mut screen_state = [0 as u8; 32 * 2 * 32];
     let mut rng = rand::thread_rng();
 
     cpu.run_with_callback(move |cpu| {
         cpu.mem_write(0xFE, rng.gen_range(1..16));
+        cpu.mem_write(0xff, 0x61);
 
-        if read_screen_state(cpu, &mut screen_state) {}
+        if read_screen_state(cpu, &mut screen_state) {
+            Image::new(&ImageRaw::<Rgb565>::new(&screen_state, 32), Point::zero())
+                .draw(&mut display)
+                .unwrap();
+            window.update(&display);
+        }
+        ::std::thread::sleep(std::time::Duration::new(0, 70_000));
     });
 
     /*'running: loop {
