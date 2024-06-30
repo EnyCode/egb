@@ -674,6 +674,15 @@ impl CPU {
         self.program_counter = self.stack_pop_u16();
     }
     // #endregion
+
+    // #region Undocumented
+    fn aax(&mut self, mode: &AddressingMode) {
+        // TODO: check implementation
+        let addr = self.get_operand_address(mode);
+        let data = self.register_a & self.register_x;
+        self.mem_write(addr, data);
+    }
+    // #endregion
     // #endregion
 
     fn update_zero_and_negative_flags(&mut self, result: u8) {
@@ -865,6 +874,65 @@ impl CPU {
                 0xEA => (),
                 // RTI
                 0x40 => self.rti(),
+                // #endregion
+
+                // #region Undocumented
+                // TODO: move some of this stuff to funcs
+                // DOP
+                0x04 | 0x14 | 0x34 | 0x44 | 0x54 | 0x64 | 0x74 | 0x80 | 0x82 | 0x89 | 0xC2
+                | 0xD4 | 0xE2 | 0xF4 => (),
+                // TOP
+                0x0C | 0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => (),
+                // NOP
+                0x1A | 0x3A | 0x5A | 0x7A | 0xDA | 0xFA => (),
+                // LAX
+                0xA7 | 0xB7 | 0xAF | 0xBF | 0xA3 | 0xB3 => {
+                    self.lda(&opcode.mode);
+                    self.tax();
+                }
+                // AAX
+                0x87 | 0x97 | 0x83 | 0x8F => self.aax(&opcode.mode),
+                // SBC
+                0xEB => self.sbc(&opcode.mode),
+                // DCP
+                0xC7 | 0xD7 | 0xCF | 0xDF | 0xDB | 0xC3 | 0xD3 => {
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let mut data = self.mem_read(addr);
+                    data = data.wrapping_sub(1);
+                    self.mem_write(addr, data);
+                    // self._update_zero_and_negative_flags(data);
+                    if data <= self.register_a {
+                        self.status.insert(CpuFlags::CARRY);
+                    }
+
+                    self.update_zero_and_negative_flags(self.register_a.wrapping_sub(data));
+                }
+                // ISC
+                0xE7 | 0xF7 | 0xEF | 0xFF | 0xFB | 0xE3 | 0xF3 => {
+                    // TODO: could use inc
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let mut data = self.mem_read(addr);
+                    data = data.wrapping_add(1);
+                    self.mem_write(addr, data);
+                    self.update_zero_and_negative_flags(data);
+                    self.add_to_register_a(((data as i8).wrapping_neg().wrapping_sub(1)) as u8);
+                }
+
+                // SLO
+                0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
+                    // TODO: could use asl
+                    let addr = self.get_operand_address(&opcode.mode);
+                    let mut data = self.mem_read(addr);
+                    if data >> 7 == 1 {
+                        self.status.insert(CpuFlags::CARRY);
+                    } else {
+                        self.status.remove(CpuFlags::CARRY);
+                    }
+                    data = data << 1;
+                    self.mem_write(addr, data);
+                    self.update_zero_and_negative_flags(data);
+                    self.set_register_a(data | self.register_a);
+                }
                 // #endregion
                 _ => todo!(),
             }

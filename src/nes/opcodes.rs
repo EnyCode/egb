@@ -230,6 +230,76 @@ lazy_static! {
         OpCode::new(0xEA, "NOP", 1, 2, AddressingMode::NoneAddressing),
         OpCode::new(0x40, "RTI", 1, 6, AddressingMode::NoneAddressing),
         // #endregion
+
+        // #region Undocumented
+        OpCode::new(0x04, "DOP", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x14, "DOP", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0x34, "DOP", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0x44, "DOP", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x54, "DOP", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0x64, "DOP", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x74, "DOP", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0x80, "DOP", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x82, "DOP", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0x89, "DOP", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xC2, "DOP", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xD4, "DOP", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0xE2, "DOP", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xF4, "DOP", 2, 4, AddressingMode::ZeroPage_X),
+
+        OpCode::new(0x0C, "TOP", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0x1C, "TOP", 3, 4, AddressingMode::Absolute_X),
+        OpCode::new(0x3C, "TOP", 3, 4, AddressingMode::Absolute_X),
+        OpCode::new(0x5C, "TOP", 3, 4, AddressingMode::Absolute_X),
+        OpCode::new(0x7C, "TOP", 3, 4, AddressingMode::Absolute_X),
+        OpCode::new(0xDC, "TOP", 3, 4, AddressingMode::Absolute_X),
+        OpCode::new(0xFC, "TOP", 3, 4, AddressingMode::Absolute_X),
+
+        OpCode::new(0x1A, "NOP", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0x3A, "NOP", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0x5A, "NOP", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0x7A, "NOP", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0xDA, "NOP", 1, 2, AddressingMode::NoneAddressing),
+        OpCode::new(0xFA, "NOP", 1, 2, AddressingMode::NoneAddressing),
+
+        OpCode::new(0xA7, "LAX", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0xB7, "LAX", 2, 4, AddressingMode::ZeroPage_Y),
+        OpCode::new(0xAF, "LAX", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0xBF, "LAX", 3, 4, AddressingMode::Absolute_Y),
+        OpCode::new(0xA3, "LAX", 2, 6, AddressingMode::Indirect_X),
+        OpCode::new(0xB3, "LAX", 2, 5, AddressingMode::Indirect_Y),
+
+        OpCode::new(0x87, "AAX", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0x97, "AAX", 2, 4, AddressingMode::ZeroPage_Y),
+        OpCode::new(0x83, "AAX", 2, 6, AddressingMode::Indirect_X),
+        OpCode::new(0x8F, "AAX", 3, 4, AddressingMode::Absolute),
+
+        OpCode::new(0xEB, "SBC", 2, 2, AddressingMode::Immediate),
+
+        OpCode::new(0xC7, "DCP", 2, 5, AddressingMode::ZeroPage),
+        OpCode::new(0xD7, "DCP", 2, 6, AddressingMode::ZeroPage_X),
+        OpCode::new(0xCF, "DCP", 3, 6, AddressingMode::Absolute),
+        OpCode::new(0xDF, "DCP", 3, 7, AddressingMode::Absolute_X),
+        OpCode::new(0xDB, "DCP", 3, 7, AddressingMode::Absolute_Y),
+        OpCode::new(0xC3, "DCP", 2, 8, AddressingMode::Indirect_X),
+        OpCode::new(0xD3, "DCP", 2, 8, AddressingMode::Indirect_Y),
+
+        OpCode::new(0xE7, "ISC", 2, 5, AddressingMode::ZeroPage),
+        OpCode::new(0xF7, "ISC", 2, 6, AddressingMode::ZeroPage_X),
+        OpCode::new(0xEF, "ISC", 3, 6, AddressingMode::Absolute),
+        OpCode::new(0xFF, "ISC", 3, 7, AddressingMode::Absolute_X),
+        OpCode::new(0xFB, "ISC", 3, 7, AddressingMode::Absolute_Y),
+        OpCode::new(0xE3, "ISC", 2, 8, AddressingMode::Indirect_X),
+        OpCode::new(0xF3, "ISC", 2, 8, AddressingMode::Indirect_Y),
+
+        OpCode::new(0x07, "SLO", 2, 5, AddressingMode::ZeroPage),
+        OpCode::new(0x17, "SLO", 2, 6, AddressingMode::ZeroPage_X),
+        OpCode::new(0x0F, "SLO", 3, 6, AddressingMode::Absolute),
+        OpCode::new(0x1F, "SLO", 3, 7, AddressingMode::Absolute_X),
+        OpCode::new(0x1B, "SLO", 3, 7, AddressingMode::Absolute_Y),
+        OpCode::new(0x03, "SLO", 2, 8, AddressingMode::Indirect_X),
+        OpCode::new(0x13, "SLO", 2, 8, AddressingMode::Indirect_Y),
+        // #endregion
     ];
 
 
