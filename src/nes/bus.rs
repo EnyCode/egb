@@ -44,6 +44,7 @@ impl Mem for Bus {
             }
             0x8000..=0xFFFF => self.read_prg_rom(addr),
             _ => {
+                #[cfg(all(target_arch = "x86_64", feature = "std_x86_64"))]
                 println!("Ignoring mem access at 0x{:x}.", addr);
                 0
             }
@@ -58,9 +59,10 @@ impl Mem for Bus {
             }
             PPU_REGISTERS..=PPU_REGISTERS_MIRRORS_END => {
                 let _mirror_down_addr = addr & 0b00100000_00000111;
-                todo!("PPU is not supported yet")
+                //todo!("PPU is not supported yet")
             }
             _ => {
+                #[cfg(all(target_arch = "x86_64", feature = "std_x86_64"))]
                 println!("Ignoring mem write-access at 0x{:x}.", addr);
             }
         }

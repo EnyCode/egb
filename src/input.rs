@@ -1,3 +1,4 @@
+#[cfg(feature = "simulator")]
 use embedded_graphics_simulator::sdl2::Keycode;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -31,7 +32,7 @@ pub struct InputStatus {
     pub start: ButtonStatus,
     pub select: ButtonStatus,
 }
-
+#[cfg(feature = "simulator")]
 impl InputStatus {
     pub fn key_down(&mut self, key: Keycode, repeat: bool) {
         match key {

@@ -1,8 +1,8 @@
-use std::cmp::min;
-use std::collections::HashMap;
-use std::iter::Map;
-use std::str::FromStr;
+use core::cmp::min;
 
+use alloc::borrow::ToOwned;
+use alloc::string::String;
+use alloc::vec::Vec;
 use embedded_graphics::geometry::{Point, Size};
 use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::mono_font::mapping::StrGlyphMapping;
@@ -17,9 +17,6 @@ use embedded_graphics::{
     draw_target::DrawTarget,
     mono_font::MonoTextStyle,
     text::{Text, TextStyle},
-};
-use embedded_graphics_simulator::{
-    BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 use tinytga::Tga;
 
@@ -73,9 +70,11 @@ where
     // TODO: move to a global config type thing
     games: Vec<Game>,
     selected_game: u32,
+    #[cfg(feature = "simulator")]
     window: Option<Window>,
 }
 
+#[cfg(feature = "simulator")]
 impl GUI<SimulatorDisplay<Rgb565>> {
     pub fn create_window(&mut self) {
         let output_settings = OutputSettingsBuilder::new()
@@ -124,6 +123,7 @@ where
             display,
             games,
             selected_game: 1,
+            #[cfg(feature = "simulator")]
             window: None,
         };
     }
@@ -175,9 +175,9 @@ where
         )
         .draw(&mut self.display)?;
 
-        let mut inputs = HashMap::new();
-        inputs.insert(Button::Start, "Settings");
-        inputs.insert(Button::A, "Launch");
+        let mut inputs = Vec::new();
+        inputs.push((Button::Start, "Settings"));
+        inputs.push((Button::A, "Launch"));
 
         let _ = self.draw_inputs(inputs)?;
         self.draw_games();
@@ -185,7 +185,7 @@ where
         Ok(())
     }
 
-    pub fn draw_inputs(&mut self, inputs: HashMap<Button, &str>) -> Result<(), D::Error>
+    pub fn draw_inputs(&mut self, inputs: Vec<(Button, &str)>) -> Result<(), D::Error>
     where
         D: DrawTarget<Color = Rgb565>,
     {
@@ -296,6 +296,7 @@ where
         Ok(())
     }
 
+    #[cfg(feature = "simulator")]
     pub fn update_input(&mut self, input: &InputStatus) -> Result<(), D::Error> {
         if input.just_released(Button::Left) || input.is_repeated(Button::Left) {
             self.selected_game = self.selected_game.saturating_sub(1);

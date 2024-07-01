@@ -1,6 +1,7 @@
 use crate::nes::opcodes;
+use alloc::vec::Vec;
 use bitflags::bitflags;
-use std::{collections::HashMap, ops::Add};
+use hashbrown::HashMap;
 
 use super::{bus::Bus, cartridge::Rom};
 
@@ -236,7 +237,7 @@ impl CPU {
         self.status = CpuFlags::from_bits_truncate(0b100100);
         // self.memory = [0; 0xFFFF];
 
-        self.program_counter = 0xC000;
+        self.program_counter = 0x0600;
         //println!("{}", self.mem_read_u16(0xFFFC));
     }
 

@@ -1,8 +1,14 @@
+#![no_std]
+#[macro_use]
+extern crate alloc;
+
+use alloc::vec::Vec;
 use embedded_graphics::{
     image::{Image, ImageRaw},
     pixelcolor::Rgb565,
     prelude::*,
 };
+#[cfg(feature = "simulator")]
 use embedded_graphics_simulator::{
     sdl2::Keycode, BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent,
     Window,
@@ -14,7 +20,7 @@ use nes::{
     cpu::{self, Mem},
     trace::trace,
 };
-use rand::Rng;
+use rp2040_hal::entry;
 use tinytga::Tga;
 
 mod games;
@@ -58,6 +64,8 @@ fn read_screen_state(cpu: &CPU, frame: &mut [u8; 32 * 2 * 32]) -> bool {
     update
 }
 
+#[cfg(target_arch = "x86_64")]
+#[cfg(feature = "simulator")]
 fn main() -> Result<(), core::convert::Infallible> {
     let game_code = vec![
         0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0x20, 0x2a, 0x06, 0x60, 0xa9, 0x02,
@@ -111,18 +119,17 @@ fn main() -> Result<(), core::convert::Infallible> {
     //gui.create_window();
 
     let mut input = InputStatus::default();
-    let bytes: Vec<u8> = std::fs::read("src/nestest.nes").unwrap();
+    let bytes: Vec<u8> = include_bytes!("snake.nes").to_vec();
     let rom = Rom::new(&bytes).unwrap();
     let mut cpu = CPU::new(rom);
     cpu.load(game_code);
     cpu.reset();
 
     let mut screen_state = [0 as u8; 32 * 2 * 32];
-    let mut rng = rand::thread_rng();
+    let mut rng = 0;
 
     cpu.run_with_callback(move |cpu| {
-        println!("{}", trace(cpu));
-        /*cpu.mem_write(0xFE, rng.gen_range(1..16));
+        cpu.mem_write(0xFE, rng);
 
         if read_screen_state(cpu, &mut screen_state) {
             Image::new(&ImageRaw::<Rgb565>::new(&screen_state, 32), Point::zero())
@@ -152,8 +159,8 @@ fn main() -> Result<(), core::convert::Infallible> {
                 }
                 _ => (),
             }
-        }*/
-        std::thread::sleep(std::time::Duration::new(0, 70_000));
+        }
+        //std::thread::sleep(std::time::Duration::new(0, 70_000));
     });
 
     /*'running: loop {
@@ -185,3 +192,67 @@ fn main() -> Result<(), core::convert::Infallible> {
 
     Ok(())
 }
+
+#[cfg(target_arch = "arm")]
+#[entry]
+fn main() -> ! {
+    {
+        use core::mem::MaybeUninit;
+        const HEAP_SIZE: usize = 1024;
+        static mut HEAP: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+        unsafe { ALLOCATOR.init(HEAP.as_ptr() as usize, HEAP_SIZE) }
+    }
+
+    // Grab our singleton objects
+    let mut pac = pac::Peripherals::take().unwrap();
+
+    // Set up the watchdog driver - needed by the clock setup code
+    let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
+
+    // Configure the clocks
+    //
+    // The default is to generate a 125 MHz system clock
+    let clocks = hal::clocks::init_clocks_and_plls(
+        XTAL_FREQ_HZ,
+        pac.XOSC,
+        pac.CLOCKS,
+        pac.PLL_SYS,
+        pac.PLL_USB,
+        &mut pac.RESETS,
+        &mut watchdog,
+    )
+    .ok()
+    .unwrap();
+
+    let mut timer = rp2040_hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+
+    // The single-cycle I/O block controls our GPIO pins
+    let sio = hal::Sio::new(pac.SIO);
+
+    // Set the pins to their default state
+    let pins = hal::gpio::Pins::new(
+        pac.IO_BANK0,
+        pac.PADS_BANK0,
+        sio.gpio_bank0,
+        &mut pac.RESETS,
+    );
+
+    // Configure GPIO25 as an output
+    let mut led_pin = pins.gpio25.into_push_pull_output();
+
+    let mut xs = Vec::new();
+    xs.push(1);
+
+    // Blink the LED at 1 Hz
+    loop {
+        led_pin.set_high().unwrap();
+        let len = xs.len() as u32;
+        timer.delay_ms(100 * len);
+        xs.push(1);
+        led_pin.set_low().unwrap();
+        timer.delay_ms(100 * len);
+        xs.push(1);
+    }
+}
+
+fn main() {}

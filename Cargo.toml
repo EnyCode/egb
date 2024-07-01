@@ -4,10 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
+#rand = { version = "0.8.5", default-features = false }anyhow = "1.0.86"
 bitflags = "2.6.0"
 embedded-graphics = "0.8.1"
-embedded-graphics-simulator = "0.6.0"
-lazy_static = "1.5.0"
-rand = "0.8.5"
+hashbrown = "0.14.5"
+rp2040-hal = "0.10.2"
+spin = "0.9.8"
+st7735-lcd = "0.10.0"
 tinytga = "0.5.0"
+
+[dev-dependencies]
+embedded-graphics-simulator = "0.6.0"

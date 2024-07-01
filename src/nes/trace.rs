@@ -1,9 +1,13 @@
+use alloc::string::String;
+use alloc::string::ToString;
+use alloc::vec::Vec;
+
 use crate::cpu::AddressingMode;
 use crate::cpu::Mem;
 use crate::cpu::CPU;
 use crate::nes::opcodes;
-use std::collections::HashMap;
 
+#[cfg(all(target_arch = "x86_64", feature = "std_x86_64"))]
 pub fn trace(cpu: &CPU) -> String {
     let ref opscodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
 
@@ -132,7 +136,13 @@ pub fn trace(cpu: &CPU) -> String {
     .to_ascii_uppercase()
 }
 
+#[cfg(not(all(target_arch = "x86_64", feature = "std_x86_64")))]
+pub fn trace(cpu: &CPU) -> String {
+    String::new()
+}
+
 #[cfg(test)]
+#[cfg(all(target_arch = "x86_64", feature = "std_x86_64"))]
 mod test {
     use super::*;
     use crate::nes::bus::Bus;
