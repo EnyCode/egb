@@ -1,219 +1,39 @@
+//! Blinks the LED on a Pico board
+//!
+//! This will blink an LED attached to GP25, which is the pin the Pico uses for the on-board LED.
 #![no_std]
-#[macro_use]
-extern crate alloc;
+#![no_main]
 
-use alloc::vec::Vec;
-use embedded_graphics::{
-    image::{Image, ImageRaw},
-    pixelcolor::Rgb565,
-    prelude::*,
+use bsp::entry;
+use defmt::*;
+use defmt_rtt as _;
+use embedded_hal::digital::OutputPin;
+use panic_probe as _;
+
+// Provide an alias for our BSP so we can switch targets quickly.
+// Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
+use rp_pico as bsp;
+// use sparkfun_pro_micro_rp2040 as bsp;
+
+use bsp::hal::{
+    clocks::{init_clocks_and_plls, Clock},
+    pac,
+    sio::Sio,
+    watchdog::Watchdog,
 };
-#[cfg(feature = "simulator")]
-use embedded_graphics_simulator::{
-    sdl2::Keycode, BinaryColorTheme, OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent,
-    Window,
-};
-use games::Game;
-use input::InputStatus;
-use nes::{cartridge::Rom, cpu::CPU};
-use nes::{
-    cpu::{self, Mem},
-    trace::trace,
-};
-use rp2040_hal::entry;
-use tinytga::Tga;
 
-mod games;
-mod gui;
-mod input;
-mod nes;
-mod util;
-
-fn color(byte: u8) -> Rgb565 {
-    match byte {
-        0 => Rgb565::BLACK,
-        1 => Rgb565::WHITE,
-        2 | 9 => Rgb565::CSS_GRAY,
-        3 | 10 => Rgb565::RED,
-        4 | 11 => Rgb565::CSS_LIME,
-        5 | 12 => Rgb565::BLUE,
-        6 | 13 => Rgb565::MAGENTA,
-        7 | 14 => Rgb565::YELLOW,
-        _ => Rgb565::CYAN,
-    }
-}
-
-fn read_screen_state(cpu: &CPU, frame: &mut [u8; 32 * 2 * 32]) -> bool {
-    let mut frame_idx = 0;
-    let mut update = false;
-    for i in 0x0200..0x0600 {
-        let color_idx = cpu.mem_read(i as u16);
-        let color = color(color_idx);
-        let (b1, b2) = (
-            (color.r() << 3) | (color.g() >> 2),
-            (color.g() & 0b11) << 5 | color.b(),
-        );
-        if frame[frame_idx] != b1 || frame[frame_idx + 1] != b2 {
-            frame[frame_idx] = b1;
-            frame[frame_idx + 1] = b2;
-            update = true;
-        }
-        frame_idx += 2;
-    }
-
-    update
-}
-
-#[cfg(target_arch = "x86_64")]
-#[cfg(feature = "simulator")]
-fn main() -> Result<(), core::convert::Infallible> {
-    let game_code = vec![
-        0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0x20, 0x2a, 0x06, 0x60, 0xa9, 0x02,
-        0x85, 0x02, 0xa9, 0x04, 0x85, 0x03, 0xa9, 0x11, 0x85, 0x10, 0xa9, 0x10, 0x85, 0x12, 0xa9,
-        0x0f, 0x85, 0x14, 0xa9, 0x04, 0x85, 0x11, 0x85, 0x13, 0x85, 0x15, 0x60, 0xa5, 0xfe, 0x85,
-        0x00, 0xa5, 0xfe, 0x29, 0x03, 0x18, 0x69, 0x02, 0x85, 0x01, 0x60, 0x20, 0x4d, 0x06, 0x20,
-        0x8d, 0x06, 0x20, 0xc3, 0x06, 0x20, 0x19, 0x07, 0x20, 0x20, 0x07, 0x20, 0x2d, 0x07, 0x4c,
-        0x38, 0x06, 0xa5, 0xff, 0xc9, 0x77, 0xf0, 0x0d, 0xc9, 0x64, 0xf0, 0x14, 0xc9, 0x73, 0xf0,
-        0x1b, 0xc9, 0x61, 0xf0, 0x22, 0x60, 0xa9, 0x04, 0x24, 0x02, 0xd0, 0x26, 0xa9, 0x01, 0x85,
-        0x02, 0x60, 0xa9, 0x08, 0x24, 0x02, 0xd0, 0x1b, 0xa9, 0x02, 0x85, 0x02, 0x60, 0xa9, 0x01,
-        0x24, 0x02, 0xd0, 0x10, 0xa9, 0x04, 0x85, 0x02, 0x60, 0xa9, 0x02, 0x24, 0x02, 0xd0, 0x05,
-        0xa9, 0x08, 0x85, 0x02, 0x60, 0x60, 0x20, 0x94, 0x06, 0x20, 0xa8, 0x06, 0x60, 0xa5, 0x00,
-        0xc5, 0x10, 0xd0, 0x0d, 0xa5, 0x01, 0xc5, 0x11, 0xd0, 0x07, 0xe6, 0x03, 0xe6, 0x03, 0x20,
-        0x2a, 0x06, 0x60, 0xa2, 0x02, 0xb5, 0x10, 0xc5, 0x10, 0xd0, 0x06, 0xb5, 0x11, 0xc5, 0x11,
-        0xf0, 0x09, 0xe8, 0xe8, 0xe4, 0x03, 0xf0, 0x06, 0x4c, 0xaa, 0x06, 0x4c, 0x35, 0x07, 0x60,
-        0xa6, 0x03, 0xca, 0x8a, 0xb5, 0x10, 0x95, 0x12, 0xca, 0x10, 0xf9, 0xa5, 0x02, 0x4a, 0xb0,
-        0x09, 0x4a, 0xb0, 0x19, 0x4a, 0xb0, 0x1f, 0x4a, 0xb0, 0x2f, 0xa5, 0x10, 0x38, 0xe9, 0x20,
-        0x85, 0x10, 0x90, 0x01, 0x60, 0xc6, 0x11, 0xa9, 0x01, 0xc5, 0x11, 0xf0, 0x28, 0x60, 0xe6,
-        0x10, 0xa9, 0x1f, 0x24, 0x10, 0xf0, 0x1f, 0x60, 0xa5, 0x10, 0x18, 0x69, 0x20, 0x85, 0x10,
-        0xb0, 0x01, 0x60, 0xe6, 0x11, 0xa9, 0x06, 0xc5, 0x11, 0xf0, 0x0c, 0x60, 0xc6, 0x10, 0xa5,
-        0x10, 0x29, 0x1f, 0xc9, 0x1f, 0xf0, 0x01, 0x60, 0x4c, 0x35, 0x07, 0xa0, 0x00, 0xa5, 0xfe,
-        0x91, 0x00, 0x60, 0xa6, 0x03, 0xa9, 0x00, 0x81, 0x10, 0xa2, 0x00, 0xa9, 0x01, 0x81, 0x10,
-        0x60, 0xa2, 0x00, 0xea, 0xea, 0xca, 0xd0, 0xfb, 0x60,
-    ];
-    /*let mut games = vec![];
-    games.push(Game::new_gameboy_advanced(
-        "Super Mario Advanced",
-        Tga::from_slice(include_bytes!("assets/games/super_mario_advanced.tga")).unwrap(),
-    ));
-    games.push(Game::new_gameboy(
-        "Super Mario Land",
-        Tga::from_slice(include_bytes!("assets/games/super_mario_land.tga")).unwrap(),
-    ));
-    games.push(Game::new_nes(
-        "Super Mario Bros",
-        Tga::from_slice(include_bytes!("assets/games/super_mario_bros.tga")).unwrap(),
-    ));
-
-    util::write_font();*/
-    let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(32, 32));
-    let output_settings = OutputSettingsBuilder::new()
-        .theme(BinaryColorTheme::Default)
-        .pixel_spacing(0)
-        .scale(10)
-        .build();
-    let mut window = Window::new("Snake", &output_settings);
-    window.update(&display);
-    //let mut gui = gui::GUI::new(display, games);
-
-    //gui.draw_background()?;
-    //gui.create_window();
-
-    let mut input = InputStatus::default();
-    let bytes: Vec<u8> = include_bytes!("snake.nes").to_vec();
-    let rom = Rom::new(&bytes).unwrap();
-    let mut cpu = CPU::new(rom);
-    cpu.load(game_code);
-    cpu.reset();
-
-    let mut screen_state = [0 as u8; 32 * 2 * 32];
-    let mut rng = 0;
-
-    cpu.run_with_callback(move |cpu| {
-        cpu.mem_write(0xFE, rng);
-
-        if read_screen_state(cpu, &mut screen_state) {
-            Image::new(&ImageRaw::<Rgb565>::new(&screen_state, 32), Point::zero())
-                .draw(&mut display)
-                .unwrap();
-            window.update(&display);
-        }
-
-        for event in window.events() {
-            match event {
-                SimulatorEvent::Quit => cpu.program_counter = 0x735,
-                SimulatorEvent::KeyDown {
-                    keycode,
-                    keymod,
-                    repeat,
-                } => {
-                    let code = match keycode {
-                        Keycode::W => 0x77,
-                        Keycode::A => 0x61,
-                        Keycode::S => 0x73,
-                        Keycode::D => 0x64,
-                        _ => 0,
-                    };
-                    if code != 0 {
-                        cpu.mem_write(0xFF, code);
-                    }
-                }
-                _ => (),
-            }
-        }
-        //std::thread::sleep(std::time::Duration::new(0, 70_000));
-    });
-
-    /*'running: loop {
-        gui.update();
-        input.update();
-
-        for event in gui.events().unwrap() {
-            match event {
-                SimulatorEvent::KeyDown {
-                    keycode,
-                    keymod,
-                    repeat,
-                } => {
-                    input.key_down(keycode, repeat);
-                }
-                SimulatorEvent::KeyUp {
-                    keycode,
-                    keymod,
-                    repeat,
-                } => {
-                    input.key_up(keycode);
-                }
-                SimulatorEvent::Quit => break 'running,
-                _ => {}
-            }
-        }
-        gui.update_input(&input).unwrap();
-    }*/
-
-    Ok(())
-}
-
-#[cfg(target_arch = "arm")]
 #[entry]
 fn main() -> ! {
-    {
-        use core::mem::MaybeUninit;
-        const HEAP_SIZE: usize = 1024;
-        static mut HEAP: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
-        unsafe { ALLOCATOR.init(HEAP.as_ptr() as usize, HEAP_SIZE) }
-    }
-
-    // Grab our singleton objects
+    info!("Program start");
     let mut pac = pac::Peripherals::take().unwrap();
+    let core = pac::CorePeripherals::take().unwrap();
+    let mut watchdog = Watchdog::new(pac.WATCHDOG);
+    let sio = Sio::new(pac.SIO);
 
-    // Set up the watchdog driver - needed by the clock setup code
-    let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
-
-    // Configure the clocks
-    //
-    // The default is to generate a 125 MHz system clock
-    let clocks = hal::clocks::init_clocks_and_plls(
-        XTAL_FREQ_HZ,
+    // External high-speed crystal on the pico board is 12Mhz
+    let external_xtal_freq_hz = 12_000_000u32;
+    let clocks = init_clocks_and_plls(
+        external_xtal_freq_hz,
         pac.XOSC,
         pac.CLOCKS,
         pac.PLL_SYS,
@@ -224,35 +44,35 @@ fn main() -> ! {
     .ok()
     .unwrap();
 
-    let mut timer = rp2040_hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
 
-    // The single-cycle I/O block controls our GPIO pins
-    let sio = hal::Sio::new(pac.SIO);
-
-    // Set the pins to their default state
-    let pins = hal::gpio::Pins::new(
+    let pins = bsp::Pins::new(
         pac.IO_BANK0,
         pac.PADS_BANK0,
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
 
-    // Configure GPIO25 as an output
-    let mut led_pin = pins.gpio25.into_push_pull_output();
+    // This is the correct pin on the Raspberry Pico board. On other boards, even if they have an
+    // on-board LED, it might need to be changed.
+    //
+    // Notably, on the Pico W, the LED is not connected to any of the RP2040 GPIOs but to the cyw43 module instead.
+    // One way to do that is by using [embassy](https://github.com/embassy-rs/embassy/blob/main/examples/rp/src/bin/wifi_blinky.rs)
+    //
+    // If you have a Pico W and want to toggle a LED with a simple GPIO output pin, you can connect an external
+    // LED to one of the GPIO pins, and reference that pin here. Don't forget adding an appropriate resistor
+    // in series with the LED.
+    let mut led_l = pins.gpio28.into_push_pull_output();
+    let mut led_r = pins.gpio4.into_push_pull_output();
 
-    let mut xs = Vec::new();
-    xs.push(1);
-
-    // Blink the LED at 1 Hz
     loop {
-        led_pin.set_high().unwrap();
-        let len = xs.len() as u32;
-        timer.delay_ms(100 * len);
-        xs.push(1);
-        led_pin.set_low().unwrap();
-        timer.delay_ms(100 * len);
-        xs.push(1);
+        led_l.set_high().unwrap();
+        led_r.set_low().unwrap();
+        delay.delay_ms(500);
+        led_l.set_low().unwrap();
+        led_r.set_high().unwrap();
+        delay.delay_ms(500);
     }
 }
 
-fn main() {}
+// End of file
