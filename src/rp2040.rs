@@ -2,72 +2,60 @@ use cortex_m::delay::Delay;
 use embedded_graphics::{
     geometry::Point,
     image::{Image, ImageRaw, ImageRawLE},
-    pixelcolor::{IntoStorage, Rgb565, RgbColor},
+    pixelcolor::{Rgb565, RgbColor},
     Drawable,
 };
 use rp2040_hal::{
     self as hal,
+    clocks::ClocksManager,
     fugit::RateExtU32,
     gpio::{
-        bank0::{Gpio16, Gpio18, Gpio19},
-        FunctionSio, FunctionSpi, Pin, PinId, PullDown, SioOutput,
+        bank0::{Gpio16, Gpio17, Gpio18, Gpio19, Gpio28, Gpio4},
+        FunctionSio, FunctionSpi, Pin, PullDown, SioOutput,
     },
     spi::Enabled,
 };
 
-use defmt::*;
 use defmt_rtt as _;
 use embedded_graphics::draw_target::DrawTarget;
-use embedded_hal::{digital::OutputPin, spi::SpiDevice};
-use hal::entry;
+use embedded_hal::digital::OutputPin;
 use panic_probe as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
 // use sparkfun_pro_micro_rp2040 as bsp;
 
-use hal::{
-    clocks::{init_clocks_and_plls, Clock},
-    pac,
-    sio::Sio,
-    watchdog::Watchdog,
-};
+use hal::{clocks::Clock, pac};
 use st7735_lcd::{Orientation, ST7735};
 
 /// External high-speed crystal on the Raspberry Pi Pico board is 12 MHz. Adjust
 /// if your board has a different frequency
 const XTAL_FREQ_HZ: u32 = 12_000_000u32;
 
-pub struct Hardware<PIN, DIS, Led_L = PIN, Led_R, Backlight = PIN>
-where
-    PIN: OutputPin + PinId,
-    DIS: DrawTarget,
-{
-    peripherals: pac::Peripherals,
-    core: pac::CorePeripherals,
-    clocks: hal::clocks::ClocksManager,
-    pins: hal::gpio::Pins,
-    led_pins: LedPins<Led_L, Led_R, Backlight>,
+type Display = ST7735<
+    rp2040_hal::Spi<
+        Enabled,
+        pac::SPI0,
+        (
+            Pin<Gpio19, FunctionSpi, PullDown>,
+            Pin<Gpio16, FunctionSpi, PullDown>,
+            Pin<Gpio18, FunctionSpi, PullDown>,
+        ),
+    >,
+    Pin<rp2040_hal::gpio::bank0::Gpio22, FunctionSio<SioOutput>, PullDown>,
+    Pin<rp2040_hal::gpio::bank0::Gpio26, FunctionSio<SioOutput>, PullDown>,
+>;
+
+pub struct Sprig {
+    clocks: ClocksManager,
     delay: Delay,
-    // TODO: move to type parameter
-    display: DIS,
+    led_l: Pin<Gpio28, FunctionSio<SioOutput>, PullDown>,
+    led_r: Pin<Gpio4, FunctionSio<SioOutput>, PullDown>,
+    lcd_backlight: Pin<Gpio17, FunctionSio<SioOutput>, PullDown>,
+    display: Display,
 }
 
-pub struct ButtonPins {}
-pub struct LedPins<Led_L, Led_R = Led_L, Backlight = Led_L>
-where
-    Led_L: OutputPin + PinId,
-{
-    pub led_l: Led_L,
-    pub led_r: Led_R,
-    pub lcd_backlight: Backlight,
-}
-
-impl<PIN, DIS> Hardware<PIN, DIS>
-where
-    PIN: OutputPin + PinId,
-    DIS: DrawTarget,
-{
+impl Sprig {
     pub fn init() -> Self {
         let mut pac = pac::Peripherals::take().unwrap();
         let core = pac::CorePeripherals::take().unwrap();
@@ -107,7 +95,7 @@ where
         let mut _led = pins.gpio25.into_push_pull_output();
 
         let mut l_led = pins.gpio28.into_push_pull_output();
-        let mut r_led = pins.gpio4.into_push_pull_output();
+        let r_led = pins.gpio4.into_push_pull_output();
 
         let dc = pins.gpio22.into_push_pull_output();
         let rst = pins.gpio26.into_push_pull_output();
@@ -120,43 +108,21 @@ where
             &embedded_hal::spi::MODE_0,
         );
 
-        let mut disp: ST7735<
-            rp2040_hal::Spi<
-                rp2040_hal::spi::Enabled,
-                pac::SPI0,
-                (
-                    Pin<Gpio19, FunctionSpi, PullDown>,
-                    Pin<Gpio16, FunctionSpi, PullDown>,
-                    Pin<Gpio18, FunctionSpi, PullDown>,
-                ),
-            >,
-            Pin<
-                rp2040_hal::gpio::bank0::Gpio22,
-                rp2040_hal::gpio::FunctionSio<rp2040_hal::gpio::SioOutput>,
-                PullDown,
-            >,
-            Pin<
-                rp2040_hal::gpio::bank0::Gpio26,
-                rp2040_hal::gpio::FunctionSio<rp2040_hal::gpio::SioOutput>,
-                PullDown,
-            >,
-        > = ST7735::new(spi, dc, rst, true, false, 160, 128);
-        let mut disp_cs = pins
-            .gpio20
-            .into_push_pull_output_in_state(hal::gpio::PinState::Low);
-        disp_cs.set_low().unwrap();
+        let mut disp = ST7735::new(spi, dc, rst, true, false, 160, 128);
+        let mut disp_cs = pins.gpio20.into_push_pull_output();
+        //disp_cs.set_low().unwrap();
 
         disp.init(&mut delay).unwrap();
         disp.set_orientation(&Orientation::Landscape).unwrap();
         disp.clear(Rgb565::BLACK).unwrap();
         //disp_cs.set_high().unwrap();
-        disp.set_offset(0, 25);
+        //disp.set_offset(0, 25);
 
-        let image_raw: ImageRawLE<Rgb565> = ImageRaw::new(include_bytes!("ferris.raw"), 86);
+        //let image_raw: ImageRawLE<Rgb565> = ImageRaw::new(include_bytes!("ferris.raw"), 86);
 
-        let image: Image<_> = Image::new(&image_raw, Point::new(34, 8));
+        //let image: Image<_> = Image::new(&image_raw, Point::new(34, 8));
 
-        image.draw(&mut disp).unwrap();
+        //image.draw(&mut disp).unwrap();
 
         //disp_cs.set_high().unwrap();
 
@@ -164,21 +130,32 @@ where
 
         // Wait until the background and image have been rendered otherwise
         // the screen will show random pixels for a brief moment
-        lcd_led.set_high().unwrap();
-        l_led.set_high().unwrap();
+        //lcd_led.set_high().unwrap();
+        //l_led.set_high().unwrap();
 
         Self {
-            peripherals: pac,
-            core,
             clocks,
-            pins,
-            led_pins: LedPins {
-                led_l: l_led,
-                led_r: r_led,
-                lcd_backlight: lcd_led,
-            },
             delay,
+            led_l: l_led,
+            led_r: r_led,
+            lcd_backlight: lcd_led,
             display: disp,
+        }
+    }
+
+    pub fn display(&mut self) -> &mut Display {
+        &mut self.display
+    }
+
+    pub fn delay(&mut self) -> &mut Delay {
+        &mut self.delay
+    }
+
+    pub fn set_backlight(&mut self, on: bool) {
+        if on {
+            self.lcd_backlight.set_high().unwrap();
+        } else {
+            self.lcd_backlight.set_low().unwrap();
         }
     }
 }
