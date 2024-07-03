@@ -1,39 +1,60 @@
-//! Blinks the LED on a Pico board
-//!
-//! This will blink an LED attached to GP25, which is the pin the Pico uses for the on-board LED.
 #![no_std]
 #![no_main]
 
-use bsp::entry;
+use embedded_graphics::{
+    geometry::Point,
+    image::{Image, ImageRaw, ImageRawLE},
+    pixelcolor::{Rgb565, RgbColor},
+    Drawable,
+};
+use rp2040_hal::{
+    self as hal,
+    fugit::RateExtU32,
+    gpio::{
+        bank0::{Gpio16, Gpio18, Gpio19},
+        FunctionSpi, Pin, PullDown,
+    },
+};
+
 use defmt::*;
 use defmt_rtt as _;
-use embedded_hal::digital::OutputPin;
+use embedded_graphics::draw_target::DrawTarget;
+use embedded_hal::{digital::OutputPin, spi::SpiDevice};
+use hal::entry;
 use panic_probe as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
-use rp_pico as bsp;
 // use sparkfun_pro_micro_rp2040 as bsp;
 
-use bsp::hal::{
+use hal::{
     clocks::{init_clocks_and_plls, Clock},
     pac,
     sio::Sio,
     watchdog::Watchdog,
 };
+use st7735_lcd::Orientation;
+
+#[link_section = ".boot2"]
+#[used]
+pub static BOOT2: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
+
+/// External high-speed crystal on the Raspberry Pi Pico board is 12 MHz. Adjust
+/// if your board has a different frequency
+const XTAL_FREQ_HZ: u32 = 12_000_000u32;
 
 #[entry]
 fn main() -> ! {
-    info!("Program start");
+    // Grab our singleton objects
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
-    let mut watchdog = Watchdog::new(pac.WATCHDOG);
-    let sio = Sio::new(pac.SIO);
 
-    // External high-speed crystal on the pico board is 12Mhz
-    let external_xtal_freq_hz = 12_000_000u32;
-    let clocks = init_clocks_and_plls(
-        external_xtal_freq_hz,
+    // Set up the watchdog driver - needed by the clock setup code
+    let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
+
+    // Configure the clocks
+    let clocks = hal::clocks::init_clocks_and_plls(
+        XTAL_FREQ_HZ,
         pac.XOSC,
         pac.CLOCKS,
         pac.PLL_SYS,
@@ -44,34 +65,75 @@ fn main() -> ! {
     .ok()
     .unwrap();
 
-    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
+    let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().raw());
 
-    let pins = bsp::Pins::new(
+    // The single-cycle I/O block controls our GPIO pins
+    let sio = Sio::new(pac.SIO);
+
+    // Set the pins to their default state
+    let pins = hal::gpio::Pins::new(
         pac.IO_BANK0,
         pac.PADS_BANK0,
         sio.gpio_bank0,
         &mut pac.RESETS,
     );
 
-    // This is the correct pin on the Raspberry Pico board. On other boards, even if they have an
-    // on-board LED, it might need to be changed.
-    //
-    // Notably, on the Pico W, the LED is not connected to any of the RP2040 GPIOs but to the cyw43 module instead.
-    // One way to do that is by using [embassy](https://github.com/embassy-rs/embassy/blob/main/examples/rp/src/bin/wifi_blinky.rs)
-    //
-    // If you have a Pico W and want to toggle a LED with a simple GPIO output pin, you can connect an external
-    // LED to one of the GPIO pins, and reference that pin here. Don't forget adding an appropriate resistor
-    // in series with the LED.
-    let mut led_l = pins.gpio28.into_push_pull_output();
-    let mut led_r = pins.gpio4.into_push_pull_output();
+    // These are implicitly used by the spi driver if they are in the correct mode
+    let _spi_sclk = pins.gpio18.into_function::<hal::gpio::FunctionSpi>();
+    let _spi_mosi = pins.gpio19.into_function::<hal::gpio::FunctionSpi>();
+    let _spi_miso = pins.gpio16.into_function::<hal::gpio::FunctionSpi>();
+    let spi = hal::Spi::<_, _, _, 8>::new(pac.SPI0, (_spi_mosi, _spi_miso, _spi_sclk));
+    let mut power_led = pins.gpio28.into_push_pull_output();
+    power_led.set_high().unwrap();
+
+    let mut lcd_led = pins.gpio17.into_push_pull_output();
+    lcd_led.set_high().unwrap();
+    let dc = pins.gpio22.into_push_pull_output();
+    let mut rst = pins.gpio26.into_push_pull_output();
+
+    // Exchange the uninitialised SPI driver for an initialised one
+    let spi = spi.init(
+        &mut pac.RESETS,
+        clocks.peripheral_clock.freq(),
+        1_000_000u32.Hz(),
+        &embedded_hal::spi::MODE_1,
+    );
+
+    //let mut disp = st7735_lcd::ST7735::new(spi, dc, rst, true, false, 160, 128);
+    //disp.hard_reset(&mut delay).unwrap();
+    //disp.init(&mut delay).unwrap();
+    //disp.set_orientation(&Orientation::Landscape).unwrap();
+    //disp.hard_reset(&mut delay).unwrap();
+    //disp.clear(Rgb565::GREEN).unwrap();
+    rst.set_low().unwrap();
+    delay.delay_ms(1000);
+    rst.set_high().unwrap();
+    delay.delay_ms(1000);
+    lcd_led.set_low().unwrap();
+    delay.delay_ms(1000);
+    lcd_led.set_high().unwrap();
+    //disp.set_offset(0, 25);
+    //let color = Rgb565::RED;
+    //let (b1, b2) = (
+    //    (color.r() << 3) | (color.g() >> 2),
+    //    (color.g() & 0b11) << 5 | color.b(),
+    //);
+    //disp.set_pixel(0, 0, ((b1 as u16) << 8) | b2 as u16)
+    //    .unwrap();
+
+    //let image_raw: ImageRawLE<Rgb565> = ImageRaw::new(include_bytes!("ferris.raw"), 86);
+
+    //let image: Image<_> = Image::new(&image_raw, Point::new(34, 8));
+
+    //image.draw(&mut disp).unwrap();
+
+    delay.delay_ms(100);
+
+    // Wait until the background and image have been rendered otherwise
+    // the screen will show random pixels for a brief moment
 
     loop {
-        led_l.set_high().unwrap();
-        led_r.set_low().unwrap();
-        delay.delay_ms(500);
-        led_l.set_low().unwrap();
-        led_r.set_high().unwrap();
-        delay.delay_ms(500);
+        continue;
     }
 }
 
