@@ -3,6 +3,7 @@ use core::cmp::min;
 use alloc::borrow::ToOwned;
 use alloc::string::String;
 use alloc::vec::Vec;
+use alloc::{format, vec};
 use embedded_graphics::geometry::{Point, Size};
 use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::mono_font::mapping::StrGlyphMapping;
@@ -21,7 +22,7 @@ use embedded_graphics::{
 use tinytga::Tga;
 
 use crate::games::{Game, GameConsole};
-use crate::input::{Button, InputStatus};
+use crate::input::Button;
 
 const PICO_FONT: MonoFont = MonoFont {
     image: ImageRaw::new(include_bytes!("assets/font.raw"), 128),
@@ -56,7 +57,7 @@ impl Into<String> for Button {
     }
 }
 
-pub struct GUI<D>
+pub struct Gui<'a, D>
 where
     D: DrawTarget<Color = Rgb565>,
 {
@@ -65,17 +66,15 @@ where
     subtitle_char: MonoTextStyle<'static, Rgb565>,
     normal_text: TextStyle,
     centered_text: TextStyle,
-    display: D,
+    display: &'a mut D,
     size: Size,
     // TODO: move to a global config type thing
     games: Vec<Game>,
     selected_game: u32,
-    #[cfg(feature = "simulator")]
-    window: Option<Window>,
 }
 
 #[cfg(feature = "simulator")]
-impl GUI<SimulatorDisplay<Rgb565>> {
+impl Gui<SimulatorDisplay<Rgb565>> {
     pub fn create_window(&mut self) {
         let output_settings = OutputSettingsBuilder::new()
             .theme(BinaryColorTheme::Default)
@@ -100,11 +99,11 @@ impl GUI<SimulatorDisplay<Rgb565>> {
     }
 }
 
-impl<D> GUI<D>
+impl<'a, D> Gui<'a, D>
 where
     D: DrawTarget<Color = Rgb565>,
 {
-    pub fn new(display: D, games: Vec<Game>) -> Self {
+    pub fn new(display: &'a mut D, games: Vec<Game>) -> Self {
         let white_char = MonoTextStyle::new(&PICO_FONT, Rgb565::WHITE);
         let subtitle_char = MonoTextStyle::new(&PICO_FONT, Rgb565::new(24, 49, 24));
         let normal_text = TextStyleBuilder::new()
@@ -114,7 +113,7 @@ where
         let mut centered_text = normal_text.clone();
         centered_text.alignment = Alignment::Center;
 
-        return GUI {
+        return Gui {
             white_char,
             subtitle_char,
             normal_text,
@@ -147,25 +146,25 @@ where
 
         Rectangle::new(Point::zero(), self.size)
             .into_styled(background)
-            .draw(&mut self.display)?;
+            .draw(self.display)?;
 
         Rectangle::new(Point::zero(), Size::new(self.size.width, 8))
             .into_styled(borders)
-            .draw(&mut self.display)?;
+            .draw(self.display)?;
 
         Rectangle::new(
             Point::new(0, (self.size.height - 10).try_into().unwrap()),
             Size::new(self.display.bounding_box().size.width, 10),
         )
         .into_styled(borders)
-        .draw(&mut self.display)?;
+        .draw(self.display)?;
 
         Rectangle::new(
             Point::new(0, 16),
             Size::new(self.size.width, self.size.height - 34),
         )
         .into_styled(content)
-        .draw(&mut self.display)?;
+        .draw(self.display)?;
 
         Text::with_text_style(
             "EGB v0.1",
@@ -173,14 +172,14 @@ where
             self.subtitle_char,
             self.normal_text,
         )
-        .draw(&mut self.display)?;
+        .draw(self.display)?;
 
         let mut inputs = Vec::new();
         inputs.push((Button::Start, "Settings"));
         inputs.push((Button::A, "Launch"));
 
         let _ = self.draw_inputs(inputs)?;
-        self.draw_games();
+        self.draw_games()?;
 
         Ok(())
     }
@@ -204,7 +203,7 @@ where
             self.white_char,
             self.centered_text,
         )
-        .draw(&mut self.display)?;
+        .draw(self.display)?;
 
         Ok(())
     }
@@ -239,11 +238,11 @@ where
                     }
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
-                    Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+                    Image::new(&cartridge, Point::new(x, y)).draw(self.display)?;
 
                     let tga = game.get_image();
 
-                    Image::new(&tga, Point::new(x + 10, y + 26)).draw(&mut self.display)?;
+                    Image::new(&tga, Point::new(x + 10, y + 26)).draw(self.display)?;
                 }
                 GameConsole::GameBoyColor => todo!(),
                 GameConsole::GameBoyAdvanced => {
@@ -261,11 +260,11 @@ where
                     }
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GBA_CARTRIDGE).unwrap();
-                    Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+                    Image::new(&cartridge, Point::new(x, y)).draw(self.display)?;
 
                     let tga = game.get_image();
 
-                    Image::new(&tga, Point::new(x + 15, y + 14)).draw(&mut self.display)?;
+                    Image::new(&tga, Point::new(x + 15, y + 14)).draw(self.display)?;
                 }
                 GameConsole::NES => {
                     let (mut x, mut y) = ((0 - 100) / 2, (self.size.height as i32 - 70) / 2);
@@ -282,31 +281,17 @@ where
                     }
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(NES_CARTRIDGE).unwrap();
-                    Image::new(&cartridge, Point::new(x, y)).draw(&mut self.display)?;
+                    Image::new(&cartridge, Point::new(x, y)).draw(self.display)?;
 
                     let tga = game.get_image();
 
-                    Image::new(&tga, Point::new(x + 38, y + 1)).draw(&mut self.display)?;
+                    Image::new(&tga, Point::new(x + 38, y + 1)).draw(self.display)?;
                 }
                 GameConsole::Sprig => todo!(),
                 _ => {}
             }
         }
 
-        Ok(())
-    }
-
-    #[cfg(feature = "simulator")]
-    pub fn update_input(&mut self, input: &InputStatus) -> Result<(), D::Error> {
-        if input.just_released(Button::Left) || input.is_repeated(Button::Left) {
-            self.selected_game = self.selected_game.saturating_sub(1);
-            self.display.clear(Rgb565::BLACK)?;
-            self.draw_background()?;
-        } else if input.just_released(Button::Right) || input.is_repeated(Button::Right) {
-            self.selected_game = min(self.selected_game + 1, self.games.len() as u32 - 1);
-            self.display.clear(Rgb565::BLACK)?;
-            self.draw_background()?;
-        }
         Ok(())
     }
 }

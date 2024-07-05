@@ -117,7 +117,7 @@ impl Device<Display> for Sprig {
 
         disp.init(&mut delay).unwrap();
         disp.set_orientation(&Orientation::Landscape).unwrap();
-        disp.clear(Rgb565::RED).unwrap();
+        disp.clear(Rgb565::BLACK).unwrap();
 
         let pwm_slices = hal::pwm::Slices::new(pac.PWM, &mut pac.RESETS);
         let mut pwm = pwm_slices.pwm0;
