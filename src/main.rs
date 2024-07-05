@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use device::Device;
 use embedded_graphics::{
     geometry::Point,
     image::{Image, ImageRaw, ImageRawLE},
@@ -26,6 +27,7 @@ use panic_probe as _;
 use hal::{clocks::Clock, pac};
 use st7735_lcd::{Orientation, ST7735};
 
+mod device;
 mod rp2040;
 
 #[link_section = ".boot2"]
@@ -49,8 +51,10 @@ fn main() -> ! {
     let image: Image<_> = Image::new(&image_raw, Point::new(34, 8));
 
     image.draw(disp).unwrap();
-
-    sprig.set_backlight(true);
+    //sprig.set_led_l(30000);
+    //sprig.set_led_r(0);
+    //sprig.wait(1000);
+    //sprig.set_backlight(0);
 
     // Wait until the background and image have been rendered otherwise
     // the screen will show random pixels for a brief moment
@@ -58,7 +62,19 @@ fn main() -> ! {
     //l_led.set_high().unwrap();
 
     loop {
-        continue;
+        for i in (0..=u16::MAX).skip(100) {
+            sprig.delay_us(8);
+            sprig.set_led_l(i);
+            sprig.set_backlight(i);
+        }
+
+        for i in (0..=u16::MAX).rev().skip(100) {
+            sprig.delay_us(8);
+            sprig.set_led_l(i);
+            sprig.set_backlight(i);
+        }
+
+        sprig.delay_ms(500);
     }
 }
 

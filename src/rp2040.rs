@@ -11,14 +11,15 @@ use rp2040_hal::{
     fugit::RateExtU32,
     gpio::{
         bank0::{Gpio16, Gpio17, Gpio18, Gpio19, Gpio28, Gpio4},
-        FunctionSio, FunctionSpi, Pin, PullDown, SioOutput,
+        FunctionPwm, FunctionSio, FunctionSpi, Pin, PullDown, SioOutput,
     },
+    pwm::{Channel, FreeRunning, Pwm0, Pwm2, Pwm6, Slice, Slices, A, B},
     spi::Enabled,
 };
 
 use defmt_rtt as _;
 use embedded_graphics::draw_target::DrawTarget;
-use embedded_hal::digital::OutputPin;
+use embedded_hal::{digital::OutputPin, pwm::SetDutyCycle};
 use panic_probe as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
@@ -27,6 +28,8 @@ use panic_probe as _;
 
 use hal::{clocks::Clock, pac};
 use st7735_lcd::{Orientation, ST7735};
+
+use crate::device::Device;
 
 /// External high-speed crystal on the Raspberry Pi Pico board is 12 MHz. Adjust
 /// if your board has a different frequency
@@ -49,14 +52,14 @@ type Display = ST7735<
 pub struct Sprig {
     clocks: ClocksManager,
     delay: Delay,
-    led_l: Pin<Gpio28, FunctionSio<SioOutput>, PullDown>,
-    led_r: Pin<Gpio4, FunctionSio<SioOutput>, PullDown>,
-    lcd_backlight: Pin<Gpio17, FunctionSio<SioOutput>, PullDown>,
+    led_l: Channel<Slice<Pwm6, FreeRunning>, A>,
+    led_r: Channel<Slice<Pwm2, FreeRunning>, A>,
+    lcd_backlight: Channel<Slice<Pwm0, FreeRunning>, B>,
     display: Display,
 }
 
-impl Sprig {
-    pub fn init() -> Self {
+impl Device<Display> for Sprig {
+    fn init() -> Self {
         let mut pac = pac::Peripherals::take().unwrap();
         let core = pac::CorePeripherals::take().unwrap();
 
@@ -91,11 +94,11 @@ impl Sprig {
         let spi_miso = pins.gpio16.into_function::<hal::gpio::FunctionSpi>();
         let spi = hal::Spi::<_, _, _, 8>::new(pac.SPI0, (spi_mosi, spi_miso, spi_sclk));
 
-        let mut lcd_led = pins.gpio17.into_push_pull_output();
-        let mut _led = pins.gpio25.into_push_pull_output();
+        //let mut lcd_led = pins.gpio17.into_push_pull_output();
+        //let mut _led = pins.gpio25.into_push_pull_output();
 
-        let mut l_led = pins.gpio28.into_push_pull_output();
-        let r_led = pins.gpio4.into_push_pull_output();
+        //let mut led_l = pins.gpio28.into_function::<FunctionPwm>();
+        //let mut led_r = pins.gpio4.into_function::<FunctionPwm>();
 
         let dc = pins.gpio22.into_push_pull_output();
         let rst = pins.gpio26.into_push_pull_output();
@@ -114,7 +117,30 @@ impl Sprig {
 
         disp.init(&mut delay).unwrap();
         disp.set_orientation(&Orientation::Landscape).unwrap();
-        disp.clear(Rgb565::BLACK).unwrap();
+        disp.clear(Rgb565::RED).unwrap();
+
+        let pwm_slices = hal::pwm::Slices::new(pac.PWM, &mut pac.RESETS);
+        let mut pwm = pwm_slices.pwm0;
+        pwm.set_ph_correct();
+        pwm.enable();
+        let mut lcd_led = pwm.channel_b;
+        lcd_led.output_to(pins.gpio17);
+        lcd_led.set_duty_cycle(65535 / 10 * 9).unwrap();
+
+        let mut pwm = pwm_slices.pwm6;
+        pwm.set_ph_correct();
+        pwm.enable();
+        let mut led_l = pwm.channel_a;
+        led_l.output_to(pins.gpio28);
+        led_l.set_duty_cycle(0).unwrap();
+
+        let mut pwm = pwm_slices.pwm2;
+        pwm.set_ph_correct();
+        pwm.enable();
+        let mut led_r = pwm.channel_a;
+        led_r.output_to(pins.gpio4);
+        led_r.set_duty_cycle(0).unwrap();
+
         //disp_cs.set_high().unwrap();
         //disp.set_offset(0, 25);
 
@@ -136,27 +162,36 @@ impl Sprig {
         Self {
             clocks,
             delay,
-            led_l: l_led,
-            led_r: r_led,
+            led_l,
+            led_r,
             lcd_backlight: lcd_led,
             display: disp,
+            //pwm: pwm_slices,
         }
     }
 
-    pub fn display(&mut self) -> &mut Display {
+    fn display(&mut self) -> &mut Display {
         &mut self.display
     }
 
-    pub fn delay(&mut self) -> &mut Delay {
-        &mut self.delay
+    fn set_backlight(&mut self, brightness: u16) {
+        self.lcd_backlight.set_duty_cycle(brightness).unwrap();
     }
 
-    pub fn set_backlight(&mut self, on: bool) {
-        if on {
-            self.lcd_backlight.set_high().unwrap();
-        } else {
-            self.lcd_backlight.set_low().unwrap();
-        }
+    fn set_led_l(&mut self, brightness: u16) {
+        self.led_l.set_duty_cycle(brightness).unwrap();
+    }
+
+    fn set_led_r(&mut self, brightness: u16) {
+        self.led_r.set_duty_cycle(brightness).unwrap();
+    }
+
+    fn delay_ms(&mut self, ms: u32) {
+        self.delay.delay_ms(ms);
+    }
+
+    fn delay_us(&mut self, us: u32) {
+        self.delay.delay_us(us);
     }
 }
 
@@ -202,7 +237,7 @@ fn main() -> ! {
     let spi = hal::Spi::<_, _, _, 8>::new(pac.SPI0, (spi_mosi, spi_miso, spi_sclk));
 
     let mut lcd_led = pins.gpio17.into_push_pull_output();
-    let mut led = pins.gpio25.into_push_pull_output();
+    let mut led: Pin<Gpio25, FunctionPwm, PullDown> = pins.gpio25.into_push_pull_output();
     let dc = pins.gpio22.into_push_pull_output();
     let rst = pins.gpio26.into_push_pull_output();
 
