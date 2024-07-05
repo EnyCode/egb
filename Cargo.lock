@@ -247,7 +247,6 @@ dependencies = [
  "embedded-graphics",
  "embedded-graphics-simulator",
  "embedded-hal 1.0.0",
- "panic-probe",
  "rp2040-boot2",
  "rp2040-hal",
  "st7735-lcd",
@@ -653,16 +652,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.68",
-]
-
-[[package]]
-name = "panic-probe"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4047d9235d1423d66cc97da7d07eddb54d4f154d6c13805c6d0793956f4f25b0"
-dependencies = [
- "cortex-m",
- "defmt",
 ]
 
 [[package]]

@@ -20,7 +20,6 @@ use rp2040_hal::{
 use defmt_rtt as _;
 use embedded_graphics::draw_target::DrawTarget;
 use embedded_hal::{digital::OutputPin, pwm::SetDutyCycle};
-use panic_probe as _;
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
@@ -113,7 +112,7 @@ impl Device<Display> for Sprig {
 
         let mut disp = ST7735::new(spi, dc, rst, true, false, 160, 128);
         let mut disp_cs = pins.gpio20.into_push_pull_output();
-        //disp_cs.set_low().unwrap();
+        disp_cs.set_low().unwrap();
 
         disp.init(&mut delay).unwrap();
         disp.set_orientation(&Orientation::Landscape).unwrap();

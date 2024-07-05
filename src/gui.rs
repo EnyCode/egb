@@ -1,7 +1,7 @@
 use core::cmp::min;
 
 use alloc::borrow::ToOwned;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use embedded_graphics::geometry::{Point, Size};
