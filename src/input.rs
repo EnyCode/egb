@@ -1,3 +1,4 @@
+use alloc::{borrow::ToOwned, string::String};
 #[cfg(feature = "simulator")]
 use embedded_graphics_simulator::sdl2::Keycode;
 
@@ -11,6 +12,22 @@ pub enum Button {
     B,
     Start,
     Select,
+}
+
+impl Into<String> for Button {
+    fn into(self) -> String {
+        match self {
+            Button::Up => "\u{A9}\u{AA}",
+            Button::Down => "\u{87}\u{88}",
+            Button::Left => "\u{97}\u{98}",
+            Button::Right => "\u{A3}\u{A4}",
+            Button::A => "\u{B5}\u{B6}",
+            Button::B => "\u{B7}\u{B8}",
+            Button::Start => "\u{B9}\u{BA}",
+            Button::Select => "\u{BB}\u{BC}",
+        }
+        .to_owned()
+    }
 }
 
 #[derive(Default)]
@@ -32,6 +49,7 @@ pub struct InputStatus {
     pub start: ButtonStatus,
     pub select: ButtonStatus,
 }
+
 #[cfg(feature = "simulator")]
 impl InputStatus {
     pub fn key_down(&mut self, key: Keycode, repeat: bool) {

@@ -6,12 +6,12 @@ extern crate std;
 
 use core::panic;
 
-use alloc::vec;
 use alloc::vec::Vec;
+use alloc::{boxed::Box, vec};
 #[cfg(target_arch = "arm")]
 use defmt_rtt as _;
 use games::Game;
-use gui::Gui;
+use gui::{core::Gui, screens::games::GamesScreen};
 #[cfg(target_arch = "arm")]
 use hal::entry;
 #[cfg(target_arch = "arm")]
@@ -115,8 +115,7 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
         Tga::from_slice(include_bytes!("assets/games/super_mario_bros.tga")).unwrap(),
     ));
 
-    let mut gui = Gui::new(disp, games);
-    gui.draw_background().unwrap();
+    let mut gui = Gui::new(Box::new(GamesScreen {}), disp).unwrap();
 
     #[cfg(target_arch = "x86_64")]
     device.show_static();

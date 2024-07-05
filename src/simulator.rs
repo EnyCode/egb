@@ -3,6 +3,7 @@ use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettings, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
 
+use crate::input::InputStatus;
 use crate::Device;
 use core::time::Duration;
 use std::thread;
@@ -39,6 +40,11 @@ impl Device<SimulatorDisplay<Rgb565>> for Simulator {
     }
     fn delay_us(&mut self, us: u32) {
         thread::sleep(Duration::from_micros(us as u64));
+    }
+
+    fn update_input(&mut self, input: &mut InputStatus) -> InputStatus {
+        let mut new = InputStatus::default();
+        new
     }
 }
 
