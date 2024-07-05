@@ -14,7 +14,7 @@ pub enum Button {
 }
 
 #[derive(Default)]
-struct ButtonStatus {
+pub struct ButtonStatus {
     pub pressed: bool,
     pub just_released: bool,
     pub repeat: bool,

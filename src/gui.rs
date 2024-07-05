@@ -224,16 +224,19 @@ where
         for (i, game) in to_draw.into_iter().enumerate() {
             match game.get_console() {
                 GameConsole::GameBoy => {
-                    let (mut x, mut y) = ((0 - 100) / 2, (self.size.height as i32 - 70) / 2);
+                    // Left
+                    let (mut x, mut y) = ((0 - 100) / 4 * 3, (self.size.height as i32 - 91) / 2);
+                    // Center
                     if i == 1 {
                         (x, y) = (
                             (self.size.width as i32 - 82) / 2,
                             (self.size.height as i32 - 91) / 2,
                         );
+                    // Right
                     } else if i == 2 {
                         (x, y) = (
-                            self.size.width as i32 - 50,
-                            (self.size.height as i32 - 70) / 2,
+                            self.size.width as i32 - 100 / 4,
+                            (self.size.height as i32 - 91) / 2,
                         );
                     }
 
@@ -246,7 +249,7 @@ where
                 }
                 GameConsole::GameBoyColor => todo!(),
                 GameConsole::GameBoyAdvanced => {
-                    let (mut x, mut y) = ((0 - 106) / 2, (self.size.height as i32 - 70) / 2);
+                    let (mut x, mut y) = ((0 - 106) / 4 * 3, (self.size.height as i32 - 61) / 2);
                     if i == 1 {
                         (x, y) = (
                             (self.size.width as i32 - 106) / 2,
@@ -254,8 +257,8 @@ where
                         );
                     } else if i == 2 {
                         (x, y) = (
-                            self.size.width as i32 - 50,
-                            (self.size.height as i32 - 70) / 2,
+                            self.size.width as i32 - 106 / 4,
+                            (self.size.height as i32 - 61) / 2,
                         );
                     }
 
@@ -267,7 +270,7 @@ where
                     Image::new(&tga, Point::new(x + 15, y + 14)).draw(self.display)?;
                 }
                 GameConsole::NES => {
-                    let (mut x, mut y) = ((0 - 100) / 2, (self.size.height as i32 - 70) / 2);
+                    let (mut x, mut y) = ((0 - 100) / 4 * 3, (self.size.height as i32 - 91) / 2);
                     if i == 1 {
                         (x, y) = (
                             (self.size.width as i32 - 82) / 2,
@@ -275,8 +278,8 @@ where
                         );
                     } else if i == 2 {
                         (x, y) = (
-                            self.size.width as i32 - 50,
-                            (self.size.height as i32 - 70) / 2,
+                            self.size.width as i32 - 100 / 4,
+                            (self.size.height as i32 - 91) / 2,
                         );
                     }
 

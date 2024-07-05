@@ -17,6 +17,7 @@ impl Device<SimulatorDisplay<Rgb565>> for Simulator {
         let display = SimulatorDisplay::<Rgb565>::new(Size::new(160, 128));
         let settings = OutputSettingsBuilder::new()
             .theme(BinaryColorTheme::Default)
+            .pixel_spacing(0)
             .build();
         let window = Window::new("EGB Simulator", &settings);
         Self { display, window }
@@ -44,5 +45,9 @@ impl Device<SimulatorDisplay<Rgb565>> for Simulator {
 impl Simulator {
     pub fn update(&mut self) {
         self.window.update(&self.display);
+    }
+
+    pub fn show_static(&mut self) {
+        self.window.show_static(&self.display);
     }
 }

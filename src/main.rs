@@ -15,8 +15,6 @@ use gui::Gui;
 #[cfg(target_arch = "arm")]
 use hal::entry;
 #[cfg(target_arch = "arm")]
-use rp2040::Sprig;
-#[cfg(target_arch = "arm")]
 use rp2040_hal as hal;
 
 extern crate alloc;
@@ -45,12 +43,23 @@ mod device;
 mod rp2040;
 #[cfg(target_arch = "x86_64")]
 mod simulator;
-#[cfg(target_arch = "x86_64")]
 use simulator::Simulator;
 use tinytga::Tga;
 mod games;
 mod gui;
 mod input;
+
+use rp2040::Sprig;
+
+#[cfg(target_arch = "arm")]
+mod simulator {
+    pub struct Simulator;
+}
+
+#[cfg(target_arch = "x86_64")]
+mod rp2040 {
+    pub struct Sprig;
+}
 
 #[cfg(target_arch = "arm")]
 #[link_section = ".boot2"]
@@ -63,12 +72,21 @@ const DEVICE: Option<Sprig> = None;
 #[cfg(target_arch = "arm")]
 #[entry]
 fn main() -> ! {
-    main();
+    use input::InputStatus;
 
-    loop {}
+    let mut sprig = shared().0.unwrap();
+    let mut input = InputStatus::default();
+
+    loop {
+        input = sprig.update_input(&mut input);
+        sprig.delay_us(8);
+    }
 }
 
-fn main() {
+/// Shared code between main and entry
+/// Contains info about the device and the games
+fn shared() -> (Option<Sprig>, Option<Simulator>) {
+    #[cfg(target_arch = "arm")]
     {
         use core::mem::MaybeUninit;
         const HEAP_SIZE: usize = 10240;
@@ -96,20 +114,21 @@ fn main() {
         "Super Mario Bros",
         Tga::from_slice(include_bytes!("assets/games/super_mario_bros.tga")).unwrap(),
     ));
-    /*//Err::<(), i32>(0).unwrap();
-    disp.clear(Rgb565::BLACK).unwrap();*/
+
     let mut gui = Gui::new(disp, games);
     gui.draw_background().unwrap();
-    //let image = Tga::from_slice(include_bytes!("assets/games/super_mario_land.tga")).unwrap();
-
-    //let image: Image<_> = Image::new(&image, Point::new(34, 8));
-
-    //image.draw(disp).unwrap();
 
     #[cfg(target_arch = "x86_64")]
-    loop {
-        device.update();
-    }
+    device.show_static();
+
+    #[cfg(target_arch = "x86_64")]
+    return (None, Some(device));
+    #[cfg(target_arch = "arm")]
+    return (Some(device), None);
+}
+
+fn main() {
+    shared();
 }
 
 #[cfg(target_arch = "arm")]

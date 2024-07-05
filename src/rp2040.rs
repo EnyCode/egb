@@ -10,8 +10,7 @@ use rp2040_hal::{
     clocks::ClocksManager,
     fugit::RateExtU32,
     gpio::{
-        bank0::{Gpio16, Gpio17, Gpio18, Gpio19, Gpio28, Gpio4},
-        FunctionPwm, FunctionSio, FunctionSpi, Pin, PullDown, SioOutput,
+        bank0::*, FunctionPwm, FunctionSio, FunctionSpi, Pin, PullDown, PullUp, SioInput, SioOutput,
     },
     pwm::{Channel, FreeRunning, Pwm0, Pwm2, Pwm6, Slice, Slices, A, B},
     spi::Enabled,
@@ -19,7 +18,10 @@ use rp2040_hal::{
 
 use defmt_rtt as _;
 use embedded_graphics::draw_target::DrawTarget;
-use embedded_hal::{digital::OutputPin, pwm::SetDutyCycle};
+use embedded_hal::{
+    digital::{InputPin, OutputPin},
+    pwm::SetDutyCycle,
+};
 
 // Provide an alias for our BSP so we can switch targets quickly.
 // Uncomment the BSP you included in Cargo.toml, the rest of the code does not need to change.
@@ -28,13 +30,13 @@ use embedded_hal::{digital::OutputPin, pwm::SetDutyCycle};
 use hal::{clocks::Clock, pac};
 use st7735_lcd::{Orientation, ST7735};
 
-use crate::device::Device;
+use crate::{device::Device, input::InputStatus};
 
 /// External high-speed crystal on the Raspberry Pi Pico board is 12 MHz. Adjust
 /// if your board has a different frequency
 const XTAL_FREQ_HZ: u32 = 12_000_000u32;
 
-type Display = ST7735<
+pub type Display = ST7735<
     rp2040_hal::Spi<
         Enabled,
         pac::SPI0,
@@ -55,6 +57,12 @@ pub struct Sprig {
     led_r: Channel<Slice<Pwm2, FreeRunning>, A>,
     lcd_backlight: Channel<Slice<Pwm0, FreeRunning>, B>,
     display: Display,
+    a: Pin<Gpio14, FunctionSio<SioInput>, PullUp>,
+    b: Pin<Gpio15, FunctionSio<SioInput>, PullUp>,
+    up: Pin<Gpio5, FunctionSio<SioInput>, PullUp>,
+    down: Pin<Gpio7, FunctionSio<SioInput>, PullUp>,
+    left: Pin<Gpio6, FunctionSio<SioInput>, PullUp>,
+    right: Pin<Gpio8, FunctionSio<SioInput>, PullUp>,
 }
 
 impl Device<Display> for Sprig {
@@ -98,6 +106,12 @@ impl Device<Display> for Sprig {
 
         //let mut led_l = pins.gpio28.into_function::<FunctionPwm>();
         //let mut led_r = pins.gpio4.into_function::<FunctionPwm>();
+        let a = pins.gpio14.into_pull_up_input();
+        let b = pins.gpio15.into_pull_up_input();
+        let up = pins.gpio5.into_pull_up_input();
+        let down = pins.gpio7.into_pull_up_input();
+        let left = pins.gpio6.into_pull_up_input();
+        let right = pins.gpio8.into_pull_up_input();
 
         let dc = pins.gpio22.into_push_pull_output();
         let rst = pins.gpio26.into_push_pull_output();
@@ -165,7 +179,12 @@ impl Device<Display> for Sprig {
             led_r,
             lcd_backlight: lcd_led,
             display: disp,
-            //pwm: pwm_slices,
+            a,
+            b,
+            up,
+            down,
+            left,
+            right, //pwm: pwm_slices,
         }
     }
 
@@ -191,6 +210,48 @@ impl Device<Display> for Sprig {
 
     fn delay_us(&mut self, us: u32) {
         self.delay.delay_us(us);
+    }
+
+    fn update_input(&mut self, input: &mut InputStatus) -> InputStatus {
+        let mut new = InputStatus::default();
+        // a
+        let pressed = self.a.is_high().unwrap();
+        if !pressed && input.a.pressed {
+            new.a.just_released = true;
+        }
+        new.a.pressed = pressed;
+        // b
+        let pressed = self.b.is_high().unwrap();
+        if !pressed && input.b.pressed {
+            new.b.just_released = true;
+        }
+        new.b.pressed = pressed;
+        // up
+        let pressed = self.up.is_high().unwrap();
+        if !pressed && input.up.pressed {
+            new.up.just_released = true;
+        }
+        new.up.pressed = pressed;
+        // down
+        let pressed = self.down.is_high().unwrap();
+        if !pressed && input.down.pressed {
+            new.down.just_released = true;
+        }
+        new.down.pressed = pressed;
+        // left
+        let pressed = self.left.is_high().unwrap();
+        if !pressed && input.left.pressed {
+            new.left.just_released = true;
+        }
+        new.left.pressed = pressed;
+        // right
+        let pressed = self.right.is_high().unwrap();
+        if !pressed && input.right.pressed {
+            new.right.just_released = true;
+        }
+        new.right.pressed = pressed;
+
+        new
     }
 }
 
