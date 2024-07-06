@@ -15,7 +15,10 @@ use tinytga::Tga;
 use crate::{
     games::{Game, GameConsole},
     gui::{
-        core::{draw_inputs, BLACK_CHAR, CENTERED_TEXT, GREY_CHAR, NORMAL_TEXT, WHITE_CHAR},
+        core::{
+            draw_inputs, BACKGROUND, BLACK_CHAR, CENTERED_TEXT, GREY_CHAR, INNER_BORDER,
+            NORMAL_TEXT, OUTER_BORDER_CLR, WHITE_CHAR,
+        },
         screen::Screen,
     },
     input::{Button, InputStatus},
@@ -75,24 +78,15 @@ where
     D: DrawTarget<Color = Rgb565> + OriginDimensions,
 {
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error> {
-        display.clear(Rgb565::new(14, 29, 14))?;
+        display.clear(OUTER_BORDER_CLR)?;
         let size = display.size();
 
-        let inner_border = PrimitiveStyleBuilder::new()
-            .stroke_width(0)
-            .fill_color(Rgb565::new(24, 49, 24))
-            .build();
-        let background = PrimitiveStyleBuilder::new()
-            .stroke_width(0)
-            .fill_color(Rgb565::new(0, 1, 6))
-            .build();
-
         Rectangle::new(Point::new(0, 8), Size::new(size.width, size.height - 18))
-            .into_styled(inner_border)
+            .into_styled(INNER_BORDER)
             .draw(display)?;
 
         Rectangle::new(Point::new(0, 18), Size::new(size.width, size.height - 36))
-            .into_styled(background)
+            .into_styled(BACKGROUND)
             .draw(display)?;
 
         Text::with_text_style(
@@ -277,6 +271,7 @@ where
             }
             let mut inputs = vec![];
             inputs.push((Button::A, "Launch"));
+            inputs.push((Button::B, "Settings"));
 
             draw_inputs(inputs, display, WHITE_CHAR)?;
         }

@@ -17,7 +17,10 @@ use crate::{
     events::Event,
     games::{Game, GameConsole},
     gui::{
-        core::{draw_inputs, BLACK_CHAR, CENTERED_TEXT, GREY_CHAR, NORMAL_TEXT, WHITE_CHAR},
+        core::{
+            draw_inputs, BACKGROUND, BLACK_CHAR, CENTERED_TEXT, GREY_CHAR, INNER_BORDER,
+            INNER_BORDER_CLR, NORMAL_TEXT, OUTER_BORDER_CLR, WHITE_CHAR,
+        },
         screen::Screen,
     },
     input::{Button, InputStatus},
@@ -30,12 +33,12 @@ const TOTAL_FRAMES: i32 = 4;
 
 const SLIDER: PrimitiveStyle<Rgb565> = PrimitiveStyleBuilder::new()
     .stroke_width(1)
-    .stroke_color(Rgb565::new(14, 29, 14))
+    .stroke_color(OUTER_BORDER_CLR)
     .build();
 
 const SELECTED: PrimitiveStyle<Rgb565> = PrimitiveStyleBuilder::new()
     .stroke_width(1)
-    .stroke_color(Rgb565::new(24, 49, 24))
+    .stroke_color(INNER_BORDER_CLR)
     .build();
 
 const SLIDER_FILL: PrimitiveStyle<Rgb565> = PrimitiveStyleBuilder::new()
@@ -43,7 +46,12 @@ const SLIDER_FILL: PrimitiveStyle<Rgb565> = PrimitiveStyleBuilder::new()
     .fill_color(Rgb565::new(10, 20, 10))
     .build();
 
-#[derive(Debug, Clone)]
+const SELECTED_FILL: PrimitiveStyle<Rgb565> = PrimitiveStyleBuilder::new()
+    .stroke_width(0)
+    .fill_color(Rgb565::new(18, 37, 18))
+    .build();
+
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Selection {
     Brightness,
     None,
@@ -87,7 +95,7 @@ impl Settings {
             events: vec![],
             games,
             selected_game,
-            brightness: u16::MAX / 10 * 9,
+            brightness: u16::MAX,
             selection: Selection::None,
         }
     }
@@ -98,24 +106,15 @@ where
     D: DrawTarget<Color = Rgb565> + OriginDimensions,
 {
     fn draw(&mut self, display: &mut D) -> Result<(), D::Error> {
-        display.clear(Rgb565::new(14, 29, 14))?;
+        display.clear(OUTER_BORDER_CLR)?;
         let size = display.size();
 
-        let inner_border = PrimitiveStyleBuilder::new()
-            .stroke_width(0)
-            .fill_color(Rgb565::new(24, 49, 24))
-            .build();
-        let background = PrimitiveStyleBuilder::new()
-            .stroke_width(0)
-            .fill_color(Rgb565::new(0, 1, 6))
-            .build();
-
         Rectangle::new(Point::new(0, 8), Size::new(size.width, size.height - 18))
-            .into_styled(inner_border)
+            .into_styled(INNER_BORDER)
             .draw(display)?;
 
         Rectangle::new(Point::new(0, 18), Size::new(size.width, size.height - 36))
-            .into_styled(background)
+            .into_styled(BACKGROUND)
             .draw(display)?;
 
         Text::with_text_style(
@@ -146,7 +145,7 @@ where
         Rectangle::new(
             Point::new(5, 32),
             Size::new(
-                (((size.width - 24) as f32 / u16::MAX as f32) * self.brightness as f32) as u32,
+                (((size.width - 26) as f32 / u16::MAX as f32) * self.brightness as f32) as u32,
                 4,
             ),
         )
@@ -166,6 +165,7 @@ where
         let mut dirty = false;
         let mut selection_dirty = false;
         let mut prev = self.selection.clone();
+        let mut change = 0;
         if input.down.should_trigger() {
             self.selection = self.selection.next();
             dirty = true;
@@ -182,27 +182,105 @@ where
                 self.selected_game,
             ))));
         }
-
-        let size = display.size();
-
-        if selection_dirty {
-            Rectangle::new(prev.point(), Size::new(size.width - 24, 6))
-                .into_styled(SLIDER)
-                .draw(display)?;
-
-            Rectangle::new(self.selection.point(), Size::new(size.width - 24, 6))
-                .into_styled(SELECTED)
-                .draw(display)?;
+        if input.left.should_trigger() {
+            change = -(u16::MAX as i32) / 17;
+            dirty = true;
+        }
+        if input.right.should_trigger() {
+            change = u16::MAX as i32 / 17;
+            dirty = true;
         }
 
         if !dirty {
             return Ok(None);
         }
 
+        let size = display.size();
+        //std::println!("brightness {:?}", self.brightness);
+        if selection_dirty {
+            if prev != Selection::None {
+                Rectangle::new(prev.point(), Size::new(size.width - 24, 6))
+                    .into_styled(SLIDER)
+                    .draw(display)?;
+
+                let value = match prev {
+                    Selection::Brightness => self.brightness,
+                    Selection::None => panic!(),
+                };
+                let coord = prev.point();
+
+                Rectangle::new(
+                    Point::new(coord.x + 1, coord.y + 1),
+                    Size::new(
+                        (((size.width - 26) as f32 / u16::MAX as f32) * value as f32) as u32,
+                        4,
+                    ),
+                )
+                .into_styled(SLIDER_FILL)
+                .draw(display)?;
+            }
+            if self.selection != Selection::None {
+                Rectangle::new(self.selection.point(), Size::new(size.width - 24, 6))
+                    .into_styled(SELECTED)
+                    .draw(display)?;
+
+                let value = match self.selection {
+                    Selection::Brightness => self.brightness,
+                    Selection::None => panic!(),
+                };
+                let coord = self.selection.point();
+
+                Rectangle::new(
+                    Point::new(coord.x + 1, coord.y + 1),
+                    Size::new(
+                        (((size.width - 26) as f32 / u16::MAX as f32) * value as f32) as u32,
+                        4,
+                    ),
+                )
+                .into_styled(SELECTED_FILL)
+                .draw(display)?;
+            }
+        } else {
+            if change != 0 && self.selection != Selection::None {
+                match self.selection {
+                    Selection::Brightness => {
+                        self.brightness = if change > 0 {
+                            self.brightness.saturating_add(change.abs() as u16)
+                        } else {
+                            self.brightness.saturating_sub(change.abs() as u16)
+                        };
+                        self.events
+                            .push(Event::BacklightBrightness(self.brightness));
+                    }
+                    Selection::None => panic!(),
+                }
+                let coord = self.selection.point();
+                if change < 0 {
+                    Rectangle::new(
+                        Point::new(coord.x + 1, coord.y + 1),
+                        Size::new(size.width - 26, 4),
+                    )
+                    .into_styled(BACKGROUND)
+                    .draw(display)?;
+                }
+
+                Rectangle::new(
+                    Point::new(coord.x + 1, coord.y + 1),
+                    Size::new(
+                        (((size.width - 26) as f32 / u16::MAX as f32) * self.brightness as f32)
+                            as u32,
+                        4,
+                    ),
+                )
+                .into_styled(SELECTED_FILL)
+                .draw(display)?;
+            }
+        }
+
         Ok(None)
     }
 
     fn events(&mut self) -> Vec<crate::events::Event> {
-        todo!()
+        self.events.drain(..).collect()
     }
 }

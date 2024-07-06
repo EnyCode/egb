@@ -1,6 +1,7 @@
 use core::fmt::Pointer;
 
 use alloc::{boxed::Box, format, string::String, vec::Vec};
+use embedded_graphics::primitives::{PrimitiveStyle, PrimitiveStyleBuilder};
 use embedded_graphics::Drawable;
 use embedded_graphics::{
     draw_target::DrawTarget,
@@ -43,6 +44,19 @@ pub const CENTERED_TEXT: TextStyle = TextStyleBuilder::new()
     .alignment(Alignment::Center)
     .build();
 
+pub const OUTER_BORDER_CLR: Rgb565 = Rgb565::new(14, 29, 14);
+pub const INNER_BORDER_CLR: Rgb565 = Rgb565::new(24, 49, 24);
+pub const BACKGROUND_CLR: Rgb565 = Rgb565::new(0, 1, 6);
+
+pub const INNER_BORDER: PrimitiveStyle<Rgb565> = PrimitiveStyleBuilder::new()
+    .stroke_width(0)
+    .fill_color(INNER_BORDER_CLR)
+    .build();
+pub const BACKGROUND: PrimitiveStyle<Rgb565> = PrimitiveStyleBuilder::new()
+    .stroke_width(0)
+    .fill_color(BACKGROUND_CLR)
+    .build();
+
 pub struct Gui<D>
 where
     D: DrawTarget<Color = Rgb565> + OriginDimensions,
@@ -73,7 +87,7 @@ where
     ) -> Result<(), D::Error> {
         self.screen = screen;
         //self.display.clear(Rgb565::BLACK)?;
-        self.screen.draw(display);
+        self.screen.draw(display)?;
 
         Ok(())
     }
@@ -85,6 +99,10 @@ where
         }
 
         Ok(())
+    }
+
+    pub fn events(&mut self) -> Vec<crate::events::Event> {
+        self.screen.events()
     }
 }
 

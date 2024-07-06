@@ -252,8 +252,20 @@ impl Device<Display, Buffer> for Sprig {
 
             if self.buf.dirty {
                 self.display
-                    .fill_contiguous(&self.buf.bounding_box(), self.buf.data());
+                    .fill_contiguous(&self.buf.bounding_box(), self.buf.data())
+                    .unwrap();
                 self.buf.dirty = false;
+
+                let events = self.gui.as_mut().unwrap().events();
+                for event in events {
+                    match event {
+                        crate::events::Event::BacklightBrightness(brightness) => {
+                            self.set_backlight(brightness)
+                        }
+                        crate::events::Event::LedL(brightness) => self.set_led_r(brightness),
+                        crate::events::Event::LedR(brightness) => self.set_led_r(brightness),
+                    }
+                }
             }
         }
         //self.window.update(&self.display);
