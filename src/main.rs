@@ -48,6 +48,7 @@ use tinytga::Tga;
 mod games;
 mod gui;
 mod input;
+//mod nes;
 
 use rp2040::Sprig;
 
@@ -79,6 +80,7 @@ fn main() -> ! {
 
     loop {
         input = sprig.update_input(&mut input);
+        sprig.update(&input);
         sprig.delay_us(8);
     }
 }
@@ -94,13 +96,6 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
         unsafe { HEAP.init(HEAP_MEM.as_ptr() as usize, HEAP_SIZE) }
     }
 
-    #[cfg(target_arch = "x86_64")]
-    let mut device = Simulator::init();
-    #[cfg(target_arch = "arm")]
-    let mut device = Sprig::init();
-
-    let disp = device.display();
-
     let mut games: Vec<Game> = vec![];
     games.push(Game::new_gameboy_advanced(
         "Super Mario Advanced",
@@ -115,7 +110,13 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
         Tga::from_slice(include_bytes!("assets/games/super_mario_bros.tga")).unwrap(),
     ));
 
-    let mut gui = Gui::new(Box::new(GamesScreen {}), disp).unwrap();
+    // TODO: maybe add a startup screen?
+    #[cfg(target_arch = "x86_64")]
+    let mut device = Simulator::init(Box::new(GamesScreen::new(games)));
+    #[cfg(target_arch = "arm")]
+    let mut device = Sprig::init(Box::new(GamesScreen::new(games)));
+
+    let disp = device.display();
 
     #[cfg(target_arch = "x86_64")]
     device.show_static();
@@ -130,6 +131,7 @@ fn main() {
     shared();
 }
 
+// TODO: move to seperate file & add blinking error codes
 #[cfg(target_arch = "arm")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {

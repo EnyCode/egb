@@ -42,43 +42,45 @@ pub const CENTERED_TEXT: TextStyle = TextStyleBuilder::new()
     .alignment(Alignment::Center)
     .build();
 
-pub struct Gui<'a, D>
+pub struct Gui<D>
 where
     D: DrawTarget<Color = Rgb565> + OriginDimensions,
 {
     screen: Box<dyn screen::Screen<D>>,
-    display: &'a mut D,
     pub input: InputStatus,
 }
 
-impl<'a, D> Gui<'a, D>
+impl<D> Gui<D>
 where
     D: DrawTarget<Color = Rgb565> + OriginDimensions,
 {
-    pub fn new(screen: Box<dyn screen::Screen<D>>, display: &'a mut D) -> Result<Self, D::Error> {
+    pub fn new(screen: Box<dyn screen::Screen<D>>, display: &mut D) -> Result<Self, D::Error> {
         let mut slf = Self {
             screen,
-            display,
             input: InputStatus::default(),
         };
 
-        slf.screen.draw(&mut slf.display)?;
+        slf.screen.draw(display)?;
 
         Ok(slf)
     }
 
-    fn change_screen(&mut self, screen: Box<dyn screen::Screen<D>>) -> Result<(), D::Error> {
+    fn change_screen(
+        &mut self,
+        screen: Box<dyn screen::Screen<D>>,
+        display: &mut D,
+    ) -> Result<(), D::Error> {
         self.screen = screen;
-        self.display.clear(Rgb565::BLACK)?;
-        self.screen.draw(&mut self.display);
+        //self.display.clear(Rgb565::BLACK)?;
+        self.screen.draw(display);
 
         Ok(())
     }
 
-    pub fn update(&mut self) -> Result<(), D::Error> {
-        let result = self.screen.update(&mut self.display)?;
+    pub fn update(&mut self, input: &InputStatus, display: &mut D) -> Result<(), D::Error> {
+        let result = self.screen.update(display, input)?;
         if result.is_some() {
-            self.change_screen(result.unwrap())?;
+            self.change_screen(result.unwrap(), display)?;
         }
 
         Ok(())

@@ -1,7 +1,12 @@
+use crate::gui::core::Gui;
+use crate::gui::screen::Screen;
 use embedded_graphics::{geometry::Size, pixelcolor::Rgb565};
 use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettings, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
+use std::boxed::Box;
+
+type Display = SimulatorDisplay<Rgb565>;
 
 use crate::input::InputStatus;
 use crate::Device;
@@ -9,21 +14,26 @@ use core::time::Duration;
 use std::thread;
 
 pub struct Simulator {
-    display: SimulatorDisplay<Rgb565>,
+    display: Display,
     window: Window,
+    gui: Option<Gui<Display>>,
 }
 
-impl Device<SimulatorDisplay<Rgb565>> for Simulator {
-    fn init() -> Self {
-        let display = SimulatorDisplay::<Rgb565>::new(Size::new(160, 128));
+impl Device<Display> for Simulator {
+    fn init(screen: Box<dyn Screen<Display>>) -> Self {
+        let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(160, 128));
         let settings = OutputSettingsBuilder::new()
             .theme(BinaryColorTheme::Default)
             .pixel_spacing(0)
             .build();
         let window = Window::new("EGB Simulator", &settings);
-        Self { display, window }
+        Self {
+            gui: Some(Gui::new(screen, &mut display).unwrap()),
+            display,
+            window,
+        }
     }
-    fn display(&mut self) -> &mut SimulatorDisplay<Rgb565> {
+    fn display(&mut self) -> &mut Display {
         &mut self.display
     }
     fn set_backlight(&mut self, _brightness: u16) {
@@ -45,6 +55,10 @@ impl Device<SimulatorDisplay<Rgb565>> for Simulator {
     fn update_input(&mut self, input: &mut InputStatus) -> InputStatus {
         let mut new = InputStatus::default();
         new
+    }
+
+    fn update(&mut self, input: &InputStatus) {
+        //self.window.update(&self.display);
     }
 }
 

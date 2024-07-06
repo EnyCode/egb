@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use cortex_m::delay::Delay;
 use embedded_graphics::{
     geometry::Point,
@@ -30,7 +31,11 @@ use embedded_hal::{
 use hal::{clocks::Clock, pac};
 use st7735_lcd::{Orientation, ST7735};
 
-use crate::{device::Device, input::InputStatus};
+use crate::{
+    device::Device,
+    gui::{core::Gui, screen::Screen},
+    input::InputStatus,
+};
 
 /// External high-speed crystal on the Raspberry Pi Pico board is 12 MHz. Adjust
 /// if your board has a different frequency
@@ -63,10 +68,11 @@ pub struct Sprig {
     down: Pin<Gpio7, FunctionSio<SioInput>, PullUp>,
     left: Pin<Gpio6, FunctionSio<SioInput>, PullUp>,
     right: Pin<Gpio8, FunctionSio<SioInput>, PullUp>,
+    gui: Option<Gui<Display>>,
 }
 
 impl Device<Display> for Sprig {
-    fn init() -> Self {
+    fn init(screen: Box<dyn Screen<Display>>) -> Self {
         let mut pac = pac::Peripherals::take().unwrap();
         let core = pac::CorePeripherals::take().unwrap();
 
@@ -154,6 +160,8 @@ impl Device<Display> for Sprig {
         led_r.output_to(pins.gpio4);
         led_r.set_duty_cycle(0).unwrap();
 
+        let gui = Some(Gui::new(screen, &mut disp).unwrap());
+
         //disp_cs.set_high().unwrap();
         //disp.set_offset(0, 25);
 
@@ -184,7 +192,8 @@ impl Device<Display> for Sprig {
             up,
             down,
             left,
-            right, //pwm: pwm_slices,
+            right,
+            gui, //pwm: pwm_slices,
         }
     }
 
@@ -252,6 +261,17 @@ impl Device<Display> for Sprig {
         new.right.pressed = pressed;
 
         new
+    }
+
+    fn update(&mut self, input: &InputStatus) {
+        if self.gui.is_some() {
+            self.gui
+                .as_mut()
+                .unwrap()
+                .update(input, &mut self.display)
+                .unwrap();
+        }
+        //self.window.update(&self.display);
     }
 }
 

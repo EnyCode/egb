@@ -7,6 +7,7 @@ pub enum GameConsole {
     GameBoyAdvanced,
     NES,
     Sprig,
+    // TODO: needed?
     Placeholder,
 }
 
