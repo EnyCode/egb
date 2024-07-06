@@ -135,7 +135,7 @@ fn main() {
         input = sim.update_input(&mut input);
         sim.update(&input);
         sim.update_window();
-        sim.delay_ms(50);
+        sim.delay_ms(100);
     }
 }
 

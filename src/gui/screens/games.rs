@@ -1,7 +1,4 @@
-use core::{
-    cmp::{max, min},
-    f32::consts::PI,
-};
+use core::cmp::{max, min};
 
 use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 use embedded_graphics::{
@@ -16,13 +13,15 @@ use embedded_graphics::{
 use tinytga::Tga;
 
 use crate::{
-    games::Game,
+    games::{Game, GameConsole},
     gui::{
         core::{draw_inputs, BLACK_CHAR, CENTERED_TEXT, GREY_CHAR, NORMAL_TEXT, WHITE_CHAR},
         screen::Screen,
     },
     input::{Button, InputStatus},
 };
+
+const TOTAL_FRAMES: i32 = 4;
 
 // TODO: could these be moved to the sd card to save space for the emulators?
 const GB_CARTRIDGE: &'static [u8; 4193] = include_bytes!("../../assets/cartridges/gb.tga");
@@ -38,8 +37,8 @@ pub(crate) enum Direction {
 impl Direction {
     pub fn get_offset(&self) -> i32 {
         match self {
-            Direction::Left => 1,
-            Direction::Right => -1,
+            Direction::Left => -1,
+            Direction::Right => 1,
             Direction::None => 0,
         }
     }
@@ -48,7 +47,8 @@ impl Direction {
 pub struct GamesScreen {
     pub games: Vec<Game>,
     // TODO: this could probably be a different type
-    frame: usize,
+    frame: i32,
+    previous_game: u8,
     dir: Direction,
     // TODO: could be a bigger type but maybe not necessary
     selected_game: u8,
@@ -61,6 +61,7 @@ impl GamesScreen {
             frame: 0,
             dir: Direction::None,
             selected_game: 0,
+            previous_game: 0,
         }
     }
 }
@@ -110,51 +111,45 @@ where
         display: &mut D,
         input: &InputStatus,
     ) -> Result<Option<Box<dyn Screen<D>>>, D::Error> {
-        let mut dirty = false;
+        let mut dirty = true;
         //std::println!("{:?} {:?}", input.left.pressed, input.left.timer);
-        if self.frame > 0 {
-            dirty = true;
-        } else {
-            if input.left.should_trigger() {
-                //self.selected_game = max(self.selected_game.saturating_sub(1), 0);
-                if max(self.selected_game.saturating_sub(1), 0) != self.selected_game {
-                    dirty = true;
-                    self.dir = Direction::Left;
-                }
-            } else if input.right.should_trigger() {
-                //self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
-                if min(self.selected_game + 1, self.games.len() as u8 - 1) != self.selected_game {
-                    dirty = true;
-                    self.dir = Direction::Right;
-                }
-            }
+        if input.left.should_trigger() {
+            self.selected_game = max(self.selected_game.saturating_sub(1), 0);
+            self.dir = Direction::Left;
+        } else if input.right.should_trigger() {
+            self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
+            self.dir = Direction::Right;
         }
         //std::println!("selected_game: {}", self.selected_game);
-        if !dirty {
+        /*if !dirty {
+            self.selected_game = match self.dir {
+                Direction::Left => max(self.selected_game.saturating_sub(1), 0),
+                Direction::Right => min(self.selected_game + 1, self.games.len() as u8 - 1),
+                Direction::None => self.selected_game,
+            };
             self.dir = Direction::None;
-            //self.frame = 0;
-            if self.frame == 0 {
-                return Ok(None);
-            }
+            return Ok(None);
+        }*/
+
+        if self.frame == 0 && self.previous_game == self.selected_game {
+            dirty = false;
+        }
+        if self.frame == TOTAL_FRAMES {
+            dirty = false;
+        }
+
+        if !dirty {
+            self.frame = 0;
+            self.previous_game = self.selected_game;
+            self.dir = Direction::None;
+            return Ok(None);
         }
 
         self.frame += 1;
-        // if done, set frame to 0 - last refresh
-        if self.frame == 4 {
-            self.frame = 0;
-            //return Ok(None);
-        }
+        let multiplier: f32 = self.frame as f32 / TOTAL_FRAMES as f32;
+        //std::println!("{:?} {:?}", self.frame, multiplier);
 
-        let mut offset = self.frame as f32 / 4. * self.dir.get_offset() as f32 * 105.;
-        if self.frame == 0 {
-            offset = 0.;
-            /*self.selected_game = min(
-                max(self.selected_game + self.dir.get_offset() as u8, 0),
-                self.games.len() as u8 - 1,
-            );*/
-        }
         let size = display.size();
-        //std::println!("frame: {} {}", self.frame, (offset * 82.) as i32);
 
         let background = PrimitiveStyleBuilder::new()
             .stroke_width(0)
@@ -175,11 +170,7 @@ where
             .draw(display)?;
 
         Text::with_text_style(
-            self.games[min(
-                max(self.selected_game + self.dir.get_offset() as u8, 0),
-                self.games.len() as u8 - 1,
-            ) as usize]
-                .title,
+            self.games[self.selected_game as usize].title,
             Point::new(size.width as i32 / 2, 12),
             BLACK_CHAR,
             CENTERED_TEXT,
@@ -215,16 +206,14 @@ where
         for (i, game) in to_draw.iter().enumerate() {
             match game.get_console() {
                 crate::games::GameConsole::GameBoy => {
-                    // Left
-                    let (mut x, mut y) = ((0 - 82) + 16, (size.height as i32 - 91) / 2);
-                    // Center
-                    if i == 1 {
-                        (x, y) = ((size.width as i32 - 82) / 2, (size.height as i32 - 91) / 2);
-                    // Right
-                    } else if i == 2 {
-                        (x, y) = (size.width as i32 - 16, (size.height as i32 - 91) / 2);
-                    }
-                    x += offset as i32;
+                    let old = GameConsole::GameBoy
+                        .get_pos(&size, (i as i32 + self.dir.get_offset()) as u8);
+                    let current = GameConsole::GameBoy.get_pos(&size, i as u8);
+                    let (diff_x, diff_y) = (current.x - old.x, current.y - old.y);
+                    let (x, y) = (
+                        (diff_x as f32 * multiplier) as i32 + old.x,
+                        (diff_y as f32 * multiplier) as i32 + old.y,
+                    );
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
                     Image::new(&cartridge, Point::new(x, y)).draw(display)?;
@@ -235,14 +224,14 @@ where
                 }
                 crate::games::GameConsole::GameBoyColor => todo!(),
                 crate::games::GameConsole::GameBoyAdvanced => {
-                    // TODO: i feel like this code code be shorter
-                    let (mut x, mut y) = ((0 - 106) + 16, (size.height as i32 - 61) / 2);
-                    if i == 1 {
-                        (x, y) = ((size.width as i32 - 106) / 2, (size.height as i32 - 61) / 2);
-                    } else if i == 2 {
-                        (x, y) = (size.width as i32 - 16, (size.height as i32 - 61) / 2);
-                    }
-                    x += offset as i32;
+                    let old = GameConsole::GameBoyAdvanced
+                        .get_pos(&size, (i as i32 + self.dir.get_offset()) as u8);
+                    let current = GameConsole::GameBoyAdvanced.get_pos(&size, i as u8);
+                    let (diff_x, diff_y) = (current.x - old.x, current.y - old.y);
+                    let (x, y) = (
+                        (diff_x as f32 * multiplier) as i32 + old.x,
+                        (diff_y as f32 * multiplier) as i32 + old.y,
+                    );
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GBA_CARTRIDGE).unwrap();
                     Image::new(&cartridge, Point::new(x, y)).draw(display)?;
@@ -252,20 +241,14 @@ where
                     Image::new(&tga, Point::new(x + 15, y + 14)).draw(display)?;
                 }
                 crate::games::GameConsole::NES => {
-                    let (mut x, mut y) = ((0 - 82) + 16, (size.height as i32 - 91) / 2);
-                    if i == 1 {
-                        (x, y) = ((size.width as i32 - 82) / 2, (size.height as i32 - 91) / 2);
-                    } else if i == 2 {
-                        (x, y) = (size.width as i32 - 16, (size.height as i32 - 91) / 2);
-                    }
-                    let target_x = if i == 0 {
-                        0 - 82 + 16
-                    } else if i == 1 {
-                        (size.width as i32 - 82) / 2
-                    } else {
-                        size.width as i32 - 16
-                    };
-                    x += offset as i32;
+                    let old =
+                        GameConsole::NES.get_pos(&size, (i as i32 + self.dir.get_offset()) as u8);
+                    let current = GameConsole::NES.get_pos(&size, i as u8);
+                    let (diff_x, diff_y) = (current.x - old.x, current.y - old.y);
+                    let (x, y) = (
+                        (diff_x as f32 * multiplier) as i32 + old.x,
+                        (diff_y as f32 * multiplier) as i32 + old.y,
+                    );
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(NES_CARTRIDGE).unwrap();
                     Image::new(&cartridge, Point::new(x, y)).draw(display)?;

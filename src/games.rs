@@ -1,4 +1,7 @@
-use embedded_graphics::pixelcolor::Rgb565;
+use embedded_graphics::{
+    geometry::{Point, Size},
+    pixelcolor::Rgb565,
+};
 use tinytga::Tga;
 
 #[derive(Debug)]
@@ -10,6 +13,43 @@ pub enum GameConsole {
     Sprig,
     // TODO: needed?
     Placeholder,
+}
+
+impl GameConsole {
+    pub fn get_pos(&self, size: &Size, i: u8) -> Point {
+        let s = match self {
+            GameConsole::GameBoy => Size::new(82, 91),
+            GameConsole::GameBoyColor => todo!(),
+            GameConsole::GameBoyAdvanced => Size::new(106, 61),
+            GameConsole::NES => Size::new(82, 91),
+            GameConsole::Sprig => todo!(),
+            GameConsole::Placeholder => panic!("Placeholder console should not be used"),
+        };
+
+        match i {
+            0 => Point::new(
+                (0 - s.width as i32) + 16,
+                (size.height as i32 - s.height as i32) / 2,
+            ),
+            1 => Point::new(
+                (size.width as i32 - s.width as i32) / 2,
+                (size.height as i32 - s.height as i32) / 2,
+            ),
+            2 => Point::new(
+                size.width as i32 - 16,
+                (size.height as i32 - s.height as i32) / 2,
+            ),
+            3 => Point::new(
+                2 * size.width as i32 - 16,
+                (size.height as i32 - s.height as i32) / 2,
+            ),
+            255 => Point::new(
+                -(size.width as i32) + 16,
+                (size.height as i32 - s.height as i32) / 2,
+            ),
+            _ => panic!("Invalid index {:?} with console {:?}", i, self),
+        }
+    }
 }
 
 #[derive(Debug)]
