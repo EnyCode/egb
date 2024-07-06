@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use cortex_m::delay::Delay;
 use embedded_graphics::{
-    geometry::Point,
+    geometry::{Dimensions, Point},
     image::{Image, ImageRaw, ImageRawLE},
     pixelcolor::{Rgb565, RgbColor},
     Drawable,
@@ -32,6 +32,7 @@ use hal::{clocks::Clock, pac};
 use st7735_lcd::{Orientation, ST7735};
 
 use crate::{
+    buffer::Buffer,
     device::Device,
     gui::{core::Gui, screen::Screen},
     input::InputStatus,
@@ -68,11 +69,12 @@ pub struct Sprig {
     down: Pin<Gpio7, FunctionSio<SioInput>, PullUp>,
     left: Pin<Gpio6, FunctionSio<SioInput>, PullUp>,
     right: Pin<Gpio8, FunctionSio<SioInput>, PullUp>,
-    gui: Option<Gui<Display>>,
+    gui: Option<Gui<Buffer>>,
+    buf: Buffer,
 }
 
 impl Device<Display> for Sprig {
-    fn init(screen: Box<dyn Screen<Display>>) -> Self {
+    fn init(screen: Box<dyn Screen<Buffer>>) -> Self {
         let mut pac = pac::Peripherals::take().unwrap();
         let core = pac::CorePeripherals::take().unwrap();
 
@@ -160,7 +162,11 @@ impl Device<Display> for Sprig {
         led_r.output_to(pins.gpio4);
         led_r.set_duty_cycle(0).unwrap();
 
-        let gui = Some(Gui::new(screen, &mut disp).unwrap());
+        let mut buf = Buffer::new();
+
+        let gui = Some(Gui::new(screen, &mut buf).unwrap());
+        disp.fill_contiguous(&buf.bounding_box(), buf.data());
+        buf.dirty = false;
 
         //disp_cs.set_high().unwrap();
         //disp.set_offset(0, 25);
@@ -194,6 +200,7 @@ impl Device<Display> for Sprig {
             left,
             right,
             gui, //pwm: pwm_slices,
+            buf,
         }
     }
 
@@ -224,37 +231,37 @@ impl Device<Display> for Sprig {
     fn update_input(&mut self, input: &mut InputStatus) -> InputStatus {
         let mut new = InputStatus::default();
         // a
-        let pressed = self.a.is_high().unwrap();
+        let pressed = self.a.is_low().unwrap();
         if !pressed && input.a.pressed {
             new.a.just_released = true;
         }
         new.a.pressed = pressed;
         // b
-        let pressed = self.b.is_high().unwrap();
+        let pressed = self.b.is_low().unwrap();
         if !pressed && input.b.pressed {
             new.b.just_released = true;
         }
         new.b.pressed = pressed;
         // up
-        let pressed = self.up.is_high().unwrap();
+        let pressed = self.up.is_low().unwrap();
         if !pressed && input.up.pressed {
             new.up.just_released = true;
         }
         new.up.pressed = pressed;
         // down
-        let pressed = self.down.is_high().unwrap();
+        let pressed = self.down.is_low().unwrap();
         if !pressed && input.down.pressed {
             new.down.just_released = true;
         }
         new.down.pressed = pressed;
         // left
-        let pressed = self.left.is_high().unwrap();
+        let pressed = self.left.is_low().unwrap();
         if !pressed && input.left.pressed {
             new.left.just_released = true;
         }
         new.left.pressed = pressed;
         // right
-        let pressed = self.right.is_high().unwrap();
+        let pressed = self.right.is_low().unwrap();
         if !pressed && input.right.pressed {
             new.right.just_released = true;
         }
@@ -268,8 +275,14 @@ impl Device<Display> for Sprig {
             self.gui
                 .as_mut()
                 .unwrap()
-                .update(input, &mut self.display)
+                .update(input, &mut self.buf)
                 .unwrap();
+
+            if self.buf.dirty {
+                self.display
+                    .fill_contiguous(&self.buf.bounding_box(), self.buf.data());
+                self.buf.dirty = false;
+            }
         }
         //self.window.update(&self.display);
     }

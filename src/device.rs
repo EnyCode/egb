@@ -2,12 +2,13 @@ use alloc::boxed::Box;
 use embedded_graphics::draw_target::DrawTarget;
 
 use crate::{
+    buffer::Buffer,
     gui::screen::Screen,
     input::{self, InputStatus},
 };
 
 pub trait Device<D: DrawTarget> {
-    fn init(screen: Box<dyn Screen<D>>) -> Self;
+    fn init(screen: Box<dyn Screen<Buffer>>) -> Self;
     fn display(&mut self) -> &mut D;
     fn set_backlight(&mut self, brightness: u16);
     fn set_led_l(&mut self, brightness: u16);

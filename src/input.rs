@@ -30,7 +30,7 @@ impl Into<String> for Button {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ButtonStatus {
     pub pressed: bool,
     pub just_released: bool,
@@ -38,7 +38,7 @@ pub struct ButtonStatus {
 }
 
 // TODO: shoulder buttons
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct InputStatus {
     pub up: ButtonStatus,
     pub down: ButtonStatus,

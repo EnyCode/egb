@@ -1,4 +1,4 @@
-use core::cmp::min;
+use core::cmp::{max, min};
 
 use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 use embedded_graphics::{
@@ -39,7 +39,7 @@ impl GamesScreen {
         Self {
             games,
             frame: 0,
-            selected_game: 1,
+            selected_game: 0,
         }
     }
 }
@@ -90,13 +90,33 @@ where
     ) -> Result<Option<Box<dyn Screen<D>>>, D::Error> {
         let mut dirty = false;
         if input.left.pressed {
-            self.selected_game = self.selected_game.saturating_sub(1);
+            self.selected_game = max(self.selected_game.saturating_sub(1), 0);
+            dirty = true;
+        } else if input.right.pressed {
+            self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
             dirty = true;
         }
+        //std::println!("selected_game: {}", self.selected_game);
         if !dirty {
             return Ok(None);
         }
+
+        let size = display.size();
+
+        let background = PrimitiveStyleBuilder::new()
+            .stroke_width(0)
+            .fill_color(Rgb565::new(0, 1, 6))
+            .build();
+
+        Rectangle::new(Point::new(0, 18), Size::new(size.width, size.height - 36))
+            .into_styled(background)
+            .draw(display)?;
+
         let mut to_draw = vec![];
+        let placeholder = Game::new_placeholder();
+        if self.selected_game == 0 {
+            to_draw.push(&placeholder);
+        }
 
         for (i, game) in self.games.iter().enumerate() {
             let i = i as i32;
@@ -108,7 +128,15 @@ where
             }
         }
 
-        let size = display.size();
+        /*let mut out = alloc::string::String::new();
+        out += "Selected: ";
+        for (i, game) in to_draw.iter().enumerate() {
+            out += &i.to_string();
+            out += ". ";
+            out += game.title;
+            out += ", ";
+        }
+        std::println!("{:?}", &out);*/
 
         for (i, game) in to_draw.iter().enumerate() {
             match game.get_console() {
@@ -163,7 +191,7 @@ where
                     Image::new(&tga, Point::new(x + 38, y + 1)).draw(display)?;
                 }
                 crate::games::GameConsole::Sprig => todo!(),
-                crate::games::GameConsole::Placeholder => panic!("Tried to draw placeholder game"),
+                crate::games::GameConsole::Placeholder => (),
             }
         }
 

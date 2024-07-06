@@ -1,6 +1,7 @@
 use embedded_graphics::pixelcolor::Rgb565;
 use tinytga::Tga;
 
+#[derive(Debug)]
 pub enum GameConsole {
     GameBoy,
     GameBoyColor,
@@ -11,6 +12,7 @@ pub enum GameConsole {
     Placeholder,
 }
 
+#[derive(Debug)]
 pub struct Game {
     pub title: &'static str,
     pub console: GameConsole,

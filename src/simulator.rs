@@ -1,6 +1,8 @@
 use crate::gui::core::Gui;
 use crate::gui::screen::Screen;
 use embedded_graphics::{geometry::Size, pixelcolor::Rgb565};
+use embedded_graphics_simulator::sdl2::Keycode;
+use embedded_graphics_simulator::SimulatorEvent;
 use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettings, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
@@ -11,7 +13,7 @@ type Display = SimulatorDisplay<Rgb565>;
 use crate::input::InputStatus;
 use crate::Device;
 use core::time::Duration;
-use std::thread;
+use std::{println, thread};
 
 pub struct Simulator {
     display: Display,
@@ -26,7 +28,8 @@ impl Device<Display> for Simulator {
             .theme(BinaryColorTheme::Default)
             .pixel_spacing(0)
             .build();
-        let window = Window::new("EGB Simulator", &settings);
+        let mut window = Window::new("EGB Simulator", &settings);
+        window.update(&display);
         Self {
             gui: Some(Gui::new(screen, &mut display).unwrap()),
             display,
@@ -54,16 +57,36 @@ impl Device<Display> for Simulator {
 
     fn update_input(&mut self, input: &mut InputStatus) -> InputStatus {
         let mut new = InputStatus::default();
+
+        for event in self.window.events() {
+            match event {
+                SimulatorEvent::Quit => panic!("Exiting emulator *gracefully*"),
+                SimulatorEvent::KeyDown { keycode, .. } => match keycode {
+                    Keycode::Left => new.left.pressed = true,
+                    Keycode::Right => new.right.pressed = true,
+                    _ => {}
+                },
+                _ => {}
+            }
+        }
+
         new
     }
 
     fn update(&mut self, input: &InputStatus) {
         //self.window.update(&self.display);
+        if self.gui.is_some() {
+            self.gui
+                .as_mut()
+                .unwrap()
+                .update(input, &mut self.display)
+                .unwrap();
+        }
     }
 }
 
 impl Simulator {
-    pub fn update(&mut self) {
+    pub fn update_window(&mut self) {
         self.window.update(&self.display);
     }
 

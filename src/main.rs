@@ -14,6 +14,7 @@ use games::Game;
 use gui::{core::Gui, screens::games::GamesScreen};
 #[cfg(target_arch = "arm")]
 use hal::entry;
+use input::InputStatus;
 #[cfg(target_arch = "arm")]
 use rp2040_hal as hal;
 
@@ -45,6 +46,7 @@ mod rp2040;
 mod simulator;
 use simulator::Simulator;
 use tinytga::Tga;
+mod buffer;
 mod games;
 mod gui;
 mod input;
@@ -97,6 +99,10 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
     }
 
     let mut games: Vec<Game> = vec![];
+    games.push(Game::new_nes(
+        "Super Mario Bros",
+        Tga::from_slice(include_bytes!("assets/games/super_mario_bros.tga")).unwrap(),
+    ));
     games.push(Game::new_gameboy_advanced(
         "Super Mario Advanced",
         Tga::from_slice(include_bytes!("assets/games/super_mario_advanced.tga")).unwrap(),
@@ -104,10 +110,6 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
     games.push(Game::new_gameboy(
         "Super Mario Land",
         Tga::from_slice(include_bytes!("assets/games/super_mario_land.tga")).unwrap(),
-    ));
-    games.push(Game::new_nes(
-        "Super Mario Bros",
-        Tga::from_slice(include_bytes!("assets/games/super_mario_bros.tga")).unwrap(),
     ));
 
     // TODO: maybe add a startup screen?
@@ -118,8 +120,8 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
 
     let disp = device.display();
 
-    #[cfg(target_arch = "x86_64")]
-    device.show_static();
+    //#[cfg(target_arch = "x86_64")]
+    //device.show_static();
 
     #[cfg(target_arch = "x86_64")]
     return (None, Some(device));
@@ -127,8 +129,17 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
     return (Some(device), None);
 }
 
+#[cfg(target_arch = "x86_64")]
 fn main() {
-    shared();
+    let mut sim = shared().1.unwrap();
+    let mut input = InputStatus::default();
+
+    loop {
+        input = sim.update_input(&mut input);
+        sim.update(&input);
+        sim.update_window();
+        sim.delay_ms(50);
+    }
 }
 
 // TODO: move to seperate file & add blinking error codes
