@@ -1,4 +1,7 @@
-use core::cmp::{max, min};
+use core::{
+    cmp::{max, min},
+    f32::consts::PI,
+};
 
 use alloc::{boxed::Box, string::ToString, vec, vec::Vec};
 use embedded_graphics::{
@@ -26,10 +29,27 @@ const GB_CARTRIDGE: &'static [u8; 4193] = include_bytes!("../../assets/cartridge
 const GBA_CARTRIDGE: &'static [u8; 3813] = include_bytes!("../../assets/cartridges/gba.tga");
 const NES_CARTRIDGE: &'static [u8; 4709] = include_bytes!("../../assets/cartridges/nes.tga");
 
+pub(crate) enum Direction {
+    Left,
+    Right,
+    None,
+}
+
+impl Direction {
+    pub fn get_offset(&self) -> i32 {
+        match self {
+            Direction::Left => 1,
+            Direction::Right => -1,
+            Direction::None => 0,
+        }
+    }
+}
+
 pub struct GamesScreen {
     pub games: Vec<Game>,
     // TODO: this could probably be a different type
     frame: usize,
+    dir: Direction,
     // TODO: could be a bigger type but maybe not necessary
     selected_game: u8,
 }
@@ -39,6 +59,7 @@ impl GamesScreen {
         Self {
             games,
             frame: 0,
+            dir: Direction::None,
             selected_game: 0,
         }
     }
@@ -72,7 +93,8 @@ where
         Text::with_text_style(
             &("EGB v".to_string() + env!("CARGO_PKG_VERSION")),
             Point::new(size.width as i32 - 41, size.height as i32 - 8),
-            GREY_CHAR,
+            // TODO: use SUBTITLE_CHAR on simulator - bad contrast on sprig
+            WHITE_CHAR,
             NORMAL_TEXT,
         )
         .draw(display)?;
@@ -90,19 +112,49 @@ where
     ) -> Result<Option<Box<dyn Screen<D>>>, D::Error> {
         let mut dirty = false;
         //std::println!("{:?} {:?}", input.left.pressed, input.left.timer);
-        if input.left.should_trigger() {
-            self.selected_game = max(self.selected_game.saturating_sub(1), 0);
+        if self.frame > 0 {
             dirty = true;
-        } else if input.right.should_trigger() {
-            self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
-            dirty = true;
+        } else {
+            if input.left.should_trigger() {
+                //self.selected_game = max(self.selected_game.saturating_sub(1), 0);
+                if max(self.selected_game.saturating_sub(1), 0) != self.selected_game {
+                    dirty = true;
+                    self.dir = Direction::Left;
+                }
+            } else if input.right.should_trigger() {
+                //self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
+                if min(self.selected_game + 1, self.games.len() as u8 - 1) != self.selected_game {
+                    dirty = true;
+                    self.dir = Direction::Right;
+                }
+            }
         }
         //std::println!("selected_game: {}", self.selected_game);
         if !dirty {
-            return Ok(None);
+            self.dir = Direction::None;
+            //self.frame = 0;
+            if self.frame == 0 {
+                return Ok(None);
+            }
         }
 
+        self.frame += 1;
+        // if done, set frame to 0 - last refresh
+        if self.frame == 4 {
+            self.frame = 0;
+            //return Ok(None);
+        }
+
+        let mut offset = self.frame as f32 / 4. * self.dir.get_offset() as f32 * 105.;
+        if self.frame == 0 {
+            offset = 0.;
+            /*self.selected_game = min(
+                max(self.selected_game + self.dir.get_offset() as u8, 0),
+                self.games.len() as u8 - 1,
+            );*/
+        }
         let size = display.size();
+        //std::println!("frame: {} {}", self.frame, (offset * 82.) as i32);
 
         let background = PrimitiveStyleBuilder::new()
             .stroke_width(0)
@@ -123,8 +175,12 @@ where
             .draw(display)?;
 
         Text::with_text_style(
-            self.games[self.selected_game as usize].title,
-            Point::new(size.width as i32 / 2, 10),
+            self.games[min(
+                max(self.selected_game + self.dir.get_offset() as u8, 0),
+                self.games.len() as u8 - 1,
+            ) as usize]
+                .title,
+            Point::new(size.width as i32 / 2, 12),
             BLACK_CHAR,
             CENTERED_TEXT,
         )
@@ -168,6 +224,7 @@ where
                     } else if i == 2 {
                         (x, y) = (size.width as i32 - 16, (size.height as i32 - 91) / 2);
                     }
+                    x += offset as i32;
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
                     Image::new(&cartridge, Point::new(x, y)).draw(display)?;
@@ -185,6 +242,7 @@ where
                     } else if i == 2 {
                         (x, y) = (size.width as i32 - 16, (size.height as i32 - 61) / 2);
                     }
+                    x += offset as i32;
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GBA_CARTRIDGE).unwrap();
                     Image::new(&cartridge, Point::new(x, y)).draw(display)?;
@@ -200,6 +258,14 @@ where
                     } else if i == 2 {
                         (x, y) = (size.width as i32 - 16, (size.height as i32 - 91) / 2);
                     }
+                    let target_x = if i == 0 {
+                        0 - 82 + 16
+                    } else if i == 1 {
+                        (size.width as i32 - 82) / 2
+                    } else {
+                        size.width as i32 - 16
+                    };
+                    x += offset as i32;
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(NES_CARTRIDGE).unwrap();
                     Image::new(&cartridge, Point::new(x, y)).draw(display)?;
