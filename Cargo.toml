@@ -21,6 +21,7 @@ embedded-alloc = "0.5.1"
 hashbrown = "0.14.5"
 bitflags = "2.6.0"
 embedded-graphics-framebuf = "0.5.0"
+spin = { version = "0.9.8", default-features = false, features = ["lazy"] }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 embedded-graphics-simulator = "0.6.0"

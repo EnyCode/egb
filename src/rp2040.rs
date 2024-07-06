@@ -34,8 +34,12 @@ use st7735_lcd::{Orientation, ST7735};
 use crate::{
     buffer::Buffer,
     device::Device,
+    emu::Emulator,
+    events::Event,
+    games::GameConsole,
     gui::{core::Gui, screen::Screen},
     input::InputStatus,
+    nes::emu::NesEmulator,
 };
 
 /// External high-speed crystal on the Raspberry Pi Pico board is 12 MHz. Adjust
@@ -71,6 +75,7 @@ pub struct Sprig {
     right: Pin<Gpio8, FunctionSio<SioInput>, PullUp>,
     gui: Option<Gui<Buffer>>,
     buf: Buffer,
+    nes_emu: Option<NesEmulator>,
 }
 
 impl Device<Display, Buffer> for Sprig {
@@ -121,6 +126,13 @@ impl Device<Display, Buffer> for Sprig {
         let left = pins.gpio6.into_pull_up_input();
         let right = pins.gpio8.into_pull_up_input();
 
+        let mut bclk = pins.gpio10.into_push_pull_output();
+        bclk.set_low().unwrap();
+        let mut lrclk = pins.gpio11.into_push_pull_output();
+        lrclk.set_low().unwrap();
+        let mut din = pins.gpio12.into_push_pull_output();
+        din.set_low().unwrap();
+
         let dc = pins.gpio22.into_push_pull_output();
         let rst = pins.gpio26.into_push_pull_output();
 
@@ -165,7 +177,8 @@ impl Device<Display, Buffer> for Sprig {
         let mut buf = Buffer::new();
 
         let gui = Some(Gui::new(screen, &mut buf).unwrap());
-        disp.fill_contiguous(&buf.bounding_box(), buf.data());
+        disp.fill_contiguous(&buf.bounding_box(), buf.data())
+            .unwrap();
         buf.dirty = false;
 
         //disp_cs.set_high().unwrap();
@@ -201,6 +214,7 @@ impl Device<Display, Buffer> for Sprig {
             right,
             gui, //pwm: pwm_slices,
             buf,
+            nes_emu: None,
         }
     }
 
@@ -259,16 +273,34 @@ impl Device<Display, Buffer> for Sprig {
                 let events = self.gui.as_mut().unwrap().events();
                 for event in events {
                     match event {
-                        crate::events::Event::BacklightBrightness(brightness) => {
-                            self.set_backlight(brightness)
-                        }
-                        crate::events::Event::LedL(brightness) => self.set_led_r(brightness),
-                        crate::events::Event::LedR(brightness) => self.set_led_r(brightness),
+                        Event::BacklightBrightness(brightness) => self.set_backlight(brightness),
+                        Event::LedL(brightness) => self.set_led_r(brightness),
+                        Event::LedR(brightness) => self.set_led_r(brightness),
+                        Event::LaunchGame(console) => self.launch(console),
                     }
                 }
             }
+        } else if self.nes_emu.is_some() {
+            self.nes_emu.as_mut().unwrap().tick(&mut self.buf);
+
+            if self.buf.dirty {
+                self.display
+                    .fill_contiguous(&self.buf.bounding_box(), self.buf.data())
+                    .unwrap();
+                self.buf.dirty = false;
+            }
         }
         //self.window.update(&self.display);
+    }
+}
+
+impl Sprig {
+    fn launch(&mut self, console: GameConsole) {
+        if console == GameConsole::NES {
+            self.buf.clear(Rgb565::BLACK);
+            self.gui = None;
+            self.nes_emu = Some(NesEmulator::new());
+        }
     }
 }
 

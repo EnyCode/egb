@@ -712,235 +712,240 @@ impl CPU {
 
         loop {
             callback(self);
-            let code = self.mem_read(self.program_counter);
-            self.program_counter += 1;
-            let program_counter_state = self.program_counter;
+            self.tick();
+        }
+    }
 
-            let opcode = opcodes
-                .get(&code)
-                .expect(&format!("OpCode {:x} is not recognized", code));
+    pub fn tick(&mut self) {
+        let ref opcodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
+        let code = self.mem_read(self.program_counter);
+        self.program_counter += 1;
+        let program_counter_state = self.program_counter;
 
-            match code {
-                // #region Load/Store Operations
-                // LDA
-                0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
-                    self.lda(&opcode.mode);
-                }
-                // LDX
-                0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => self.ldx(&opcode.mode),
-                // LDY
-                0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => self.ldy(&opcode.mode),
-                // STA
-                0x85 | 0x95 | 0x8d | 0x9d | 0x99 | 0x81 | 0x91 => {
-                    self.sta(&opcode.mode);
-                }
-                // STX
-                0x86 | 0x96 | 0x8E => self.stx(&opcode.mode),
-                // STY
-                0x84 | 0x94 | 0x8C => self.sty(&opcode.mode),
-                // #endregion
+        let opcode = opcodes
+            .get(&code)
+            .expect(&format!("OpCode {:x} is not recognized", code));
 
-                // #region Register Transfers
-                // TAX
-                0xAA => self.tax(),
-                // TAY
-                0xA8 => self.tay(),
-                // TXA
-                0x8A => self.txa(),
-                // TYA
-                0x98 => self.tya(),
-                // #endregion
+        match code {
+            // #region Load/Store Operations
+            // LDA
+            0xA9 | 0xA5 | 0xB5 | 0xAD | 0xBD | 0xB9 | 0xA1 | 0xB1 => {
+                self.lda(&opcode.mode);
+            }
+            // LDX
+            0xA2 | 0xA6 | 0xB6 | 0xAE | 0xBE => self.ldx(&opcode.mode),
+            // LDY
+            0xA0 | 0xA4 | 0xB4 | 0xAC | 0xBC => self.ldy(&opcode.mode),
+            // STA
+            0x85 | 0x95 | 0x8d | 0x9d | 0x99 | 0x81 | 0x91 => {
+                self.sta(&opcode.mode);
+            }
+            // STX
+            0x86 | 0x96 | 0x8E => self.stx(&opcode.mode),
+            // STY
+            0x84 | 0x94 | 0x8C => self.sty(&opcode.mode),
+            // #endregion
 
-                // #region Stack Operations
-                // TSX
-                0xBA => self.tsx(),
-                // TXS
-                0x9A => self.txs(),
-                // PHA
-                0x48 => self.stack_push(self.register_a),
-                // PHP
-                0x08 => self.php(),
-                // PLA
-                0x68 => self.pla(),
-                // PLP
-                0x28 => self.plp(),
-                // #endregion
+            // #region Register Transfers
+            // TAX
+            0xAA => self.tax(),
+            // TAY
+            0xA8 => self.tay(),
+            // TXA
+            0x8A => self.txa(),
+            // TYA
+            0x98 => self.tya(),
+            // #endregion
 
-                // #region Logical
-                // AND
-                0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => self.and(&opcode.mode),
-                // EOR
-                0x49 | 0x45 | 0x55 | 0x4D | 0x5D | 0x59 | 0x41 | 0x51 => self.eor(&opcode.mode),
-                // ORA
-                0x09 | 0x05 | 0x15 | 0x0D | 0x1D | 0x19 | 0x01 | 0x11 => self.ora(&opcode.mode),
-                // BIT
-                0x24 | 0x2C => self.bit(&opcode.mode),
-                // #endregion
+            // #region Stack Operations
+            // TSX
+            0xBA => self.tsx(),
+            // TXS
+            0x9A => self.txs(),
+            // PHA
+            0x48 => self.stack_push(self.register_a),
+            // PHP
+            0x08 => self.php(),
+            // PLA
+            0x68 => self.pla(),
+            // PLP
+            0x28 => self.plp(),
+            // #endregion
 
-                // #region Arithmetic
-                // ADC
-                0x69 | 0x65 | 0x75 | 0x6D | 0x7D | 0x79 | 0x61 | 0x71 => self.adc(&opcode.mode),
-                // SBC
-                0xE9 | 0xE5 | 0xF5 | 0xED | 0xFD | 0xF9 | 0xE1 | 0xF1 => self.sbc(&opcode.mode),
-                // CMP
-                0xC9 | 0xC5 | 0xD5 | 0xCD | 0xDD | 0xD9 | 0xC1 | 0xD1 => {
-                    self.compare(&opcode.mode, self.register_a)
-                }
-                // CPX
-                0xE0 | 0xE4 | 0xEC => self.compare(&opcode.mode, self.register_x),
-                // CPY
-                0xC0 | 0xC4 | 0xCC => self.compare(&opcode.mode, self.register_y),
-                // #endregion
+            // #region Logical
+            // AND
+            0x29 | 0x25 | 0x35 | 0x2D | 0x3D | 0x39 | 0x21 | 0x31 => self.and(&opcode.mode),
+            // EOR
+            0x49 | 0x45 | 0x55 | 0x4D | 0x5D | 0x59 | 0x41 | 0x51 => self.eor(&opcode.mode),
+            // ORA
+            0x09 | 0x05 | 0x15 | 0x0D | 0x1D | 0x19 | 0x01 | 0x11 => self.ora(&opcode.mode),
+            // BIT
+            0x24 | 0x2C => self.bit(&opcode.mode),
+            // #endregion
 
-                // #region Increments & Decrements
-                // INC
-                0xE6 | 0xF6 | 0xEE | 0xFE => self.inc(&opcode.mode),
-                // INX
-                0xE8 => self.inx(),
-                // INY
-                0xC8 => self.iny(),
-                // DEC
-                0xC6 | 0xD6 | 0xCE | 0xDE => self.dec(&opcode.mode),
-                // DEX
-                0xCA => self.dex(),
-                // DEY
-                0x88 => self.dey(),
-                // #endregion
+            // #region Arithmetic
+            // ADC
+            0x69 | 0x65 | 0x75 | 0x6D | 0x7D | 0x79 | 0x61 | 0x71 => self.adc(&opcode.mode),
+            // SBC
+            0xE9 | 0xE5 | 0xF5 | 0xED | 0xFD | 0xF9 | 0xE1 | 0xF1 => self.sbc(&opcode.mode),
+            // CMP
+            0xC9 | 0xC5 | 0xD5 | 0xCD | 0xDD | 0xD9 | 0xC1 | 0xD1 => {
+                self.compare(&opcode.mode, self.register_a)
+            }
+            // CPX
+            0xE0 | 0xE4 | 0xEC => self.compare(&opcode.mode, self.register_x),
+            // CPY
+            0xC0 | 0xC4 | 0xCC => self.compare(&opcode.mode, self.register_y),
+            // #endregion
 
-                // #region Shifts
-                // ASL
-                0x0A => self.asl_accumulator(),
-                0x06 | 0x16 | 0x0E | 0x1E => self.asl(&opcode.mode),
-                // LSR
-                0x4A => self.lsr_accumulator(),
-                0x46 | 0x56 | 0x4E | 0x5E => self.lsr(&opcode.mode),
-                // ROL
-                0x2a => self.rol_accumulator(),
-                0x26 | 0x36 | 0x2E | 0x3E => self.rol(&opcode.mode),
-                // ROR
-                0x6a => self.ror_accumulator(),
-                0x66 | 0x76 | 0x6E | 0x7E => self.ror(&opcode.mode),
-                // #endregion
+            // #region Increments & Decrements
+            // INC
+            0xE6 | 0xF6 | 0xEE | 0xFE => self.inc(&opcode.mode),
+            // INX
+            0xE8 => self.inx(),
+            // INY
+            0xC8 => self.iny(),
+            // DEC
+            0xC6 | 0xD6 | 0xCE | 0xDE => self.dec(&opcode.mode),
+            // DEX
+            0xCA => self.dex(),
+            // DEY
+            0x88 => self.dey(),
+            // #endregion
 
-                // #region Jumps and Calls
-                // JMP
-                0x4C => self.jmp_absolute(),
-                0x6C => self.jump_indirect(),
-                // JSR
-                0x20 => self.jsr(),
-                // RTS
-                0x60 => self.rts(),
-                // #endregion
+            // #region Shifts
+            // ASL
+            0x0A => self.asl_accumulator(),
+            0x06 | 0x16 | 0x0E | 0x1E => self.asl(&opcode.mode),
+            // LSR
+            0x4A => self.lsr_accumulator(),
+            0x46 | 0x56 | 0x4E | 0x5E => self.lsr(&opcode.mode),
+            // ROL
+            0x2a => self.rol_accumulator(),
+            0x26 | 0x36 | 0x2E | 0x3E => self.rol(&opcode.mode),
+            // ROR
+            0x6a => self.ror_accumulator(),
+            0x66 | 0x76 | 0x6E | 0x7E => self.ror(&opcode.mode),
+            // #endregion
 
-                // #region Branches
-                // BCC
-                0x90 => self.branch(!self.status.contains(CpuFlags::CARRY)),
-                // BCS
-                0xB0 => self.branch(self.status.contains(CpuFlags::CARRY)),
-                // BEQ
-                0xF0 => self.branch(self.status.contains(CpuFlags::ZERO)),
-                // BMI
-                0x30 => self.branch(self.status.contains(CpuFlags::NEGATIVE)),
-                // BNE
-                0xD0 => self.branch(!self.status.contains(CpuFlags::ZERO)),
-                // BPL
-                0x10 => self.branch(!self.status.contains(CpuFlags::NEGATIVE)),
-                // BVS
-                0x70 => self.branch(self.status.contains(CpuFlags::OVERFLOW)),
-                // BVC
-                0x50 => self.branch(!self.status.contains(CpuFlags::OVERFLOW)),
-                // #endregion
+            // #region Jumps and Calls
+            // JMP
+            0x4C => self.jmp_absolute(),
+            0x6C => self.jump_indirect(),
+            // JSR
+            0x20 => self.jsr(),
+            // RTS
+            0x60 => self.rts(),
+            // #endregion
 
-                // #region Status Flag Changes
-                // CLC
-                0x18 => self.status.remove(CpuFlags::CARRY),
-                // CLD
-                0xD8 => self.status.remove(CpuFlags::DECIMAL_MODE),
-                // CLI
-                0x58 => self.status.remove(CpuFlags::INTERRUPT_DISABLE),
-                // CLV
-                0xB8 => self.status.remove(CpuFlags::OVERFLOW),
-                // SEC
-                0x38 => self.status.insert(CpuFlags::CARRY),
-                // SED
-                0xF8 => self.status.insert(CpuFlags::DECIMAL_MODE),
-                // SEI
-                0x78 => self.status.insert(CpuFlags::INTERRUPT_DISABLE),
-                // #endregion
+            // #region Branches
+            // BCC
+            0x90 => self.branch(!self.status.contains(CpuFlags::CARRY)),
+            // BCS
+            0xB0 => self.branch(self.status.contains(CpuFlags::CARRY)),
+            // BEQ
+            0xF0 => self.branch(self.status.contains(CpuFlags::ZERO)),
+            // BMI
+            0x30 => self.branch(self.status.contains(CpuFlags::NEGATIVE)),
+            // BNE
+            0xD0 => self.branch(!self.status.contains(CpuFlags::ZERO)),
+            // BPL
+            0x10 => self.branch(!self.status.contains(CpuFlags::NEGATIVE)),
+            // BVS
+            0x70 => self.branch(self.status.contains(CpuFlags::OVERFLOW)),
+            // BVC
+            0x50 => self.branch(!self.status.contains(CpuFlags::OVERFLOW)),
+            // #endregion
 
-                // #region System Functions
-                // BRK
-                0x00 => return,
-                // NOP
-                0xEA => (),
-                // RTI
-                0x40 => self.rti(),
-                // #endregion
+            // #region Status Flag Changes
+            // CLC
+            0x18 => self.status.remove(CpuFlags::CARRY),
+            // CLD
+            0xD8 => self.status.remove(CpuFlags::DECIMAL_MODE),
+            // CLI
+            0x58 => self.status.remove(CpuFlags::INTERRUPT_DISABLE),
+            // CLV
+            0xB8 => self.status.remove(CpuFlags::OVERFLOW),
+            // SEC
+            0x38 => self.status.insert(CpuFlags::CARRY),
+            // SED
+            0xF8 => self.status.insert(CpuFlags::DECIMAL_MODE),
+            // SEI
+            0x78 => self.status.insert(CpuFlags::INTERRUPT_DISABLE),
+            // #endregion
 
-                // #region Undocumented
-                // TODO: move some of this stuff to funcs
-                // DOP
-                0x04 | 0x14 | 0x34 | 0x44 | 0x54 | 0x64 | 0x74 | 0x80 | 0x82 | 0x89 | 0xC2
-                | 0xD4 | 0xE2 | 0xF4 => (),
-                // TOP
-                0x0C | 0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => (),
-                // NOP
-                0x1A | 0x3A | 0x5A | 0x7A | 0xDA | 0xFA => (),
-                // LAX
-                0xA7 | 0xB7 | 0xAF | 0xBF | 0xA3 | 0xB3 => {
-                    self.lda(&opcode.mode);
-                    self.tax();
-                }
-                // AAX
-                0x87 | 0x97 | 0x83 | 0x8F => self.aax(&opcode.mode),
-                // SBC
-                0xEB => self.sbc(&opcode.mode),
-                // DCP
-                0xC7 | 0xD7 | 0xCF | 0xDF | 0xDB | 0xC3 | 0xD3 => {
-                    let addr = self.get_operand_address(&opcode.mode);
-                    let mut data = self.mem_read(addr);
-                    data = data.wrapping_sub(1);
-                    self.mem_write(addr, data);
-                    // self._update_zero_and_negative_flags(data);
-                    if data <= self.register_a {
-                        self.status.insert(CpuFlags::CARRY);
-                    }
+            // #region System Functions
+            // BRK
+            0x00 => return,
+            // NOP
+            0xEA => (),
+            // RTI
+            0x40 => self.rti(),
+            // #endregion
 
-                    self.update_zero_and_negative_flags(self.register_a.wrapping_sub(data));
-                }
-                // ISC
-                0xE7 | 0xF7 | 0xEF | 0xFF | 0xFB | 0xE3 | 0xF3 => {
-                    // TODO: could use inc
-                    let addr = self.get_operand_address(&opcode.mode);
-                    let mut data = self.mem_read(addr);
-                    data = data.wrapping_add(1);
-                    self.mem_write(addr, data);
-                    self.update_zero_and_negative_flags(data);
-                    self.add_to_register_a(((data as i8).wrapping_neg().wrapping_sub(1)) as u8);
+            // #region Undocumented
+            // TODO: move some of this stuff to funcs
+            // DOP
+            0x04 | 0x14 | 0x34 | 0x44 | 0x54 | 0x64 | 0x74 | 0x80 | 0x82 | 0x89 | 0xC2 | 0xD4
+            | 0xE2 | 0xF4 => (),
+            // TOP
+            0x0C | 0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => (),
+            // NOP
+            0x1A | 0x3A | 0x5A | 0x7A | 0xDA | 0xFA => (),
+            // LAX
+            0xA7 | 0xB7 | 0xAF | 0xBF | 0xA3 | 0xB3 => {
+                self.lda(&opcode.mode);
+                self.tax();
+            }
+            // AAX
+            0x87 | 0x97 | 0x83 | 0x8F => self.aax(&opcode.mode),
+            // SBC
+            0xEB => self.sbc(&opcode.mode),
+            // DCP
+            0xC7 | 0xD7 | 0xCF | 0xDF | 0xDB | 0xC3 | 0xD3 => {
+                let addr = self.get_operand_address(&opcode.mode);
+                let mut data = self.mem_read(addr);
+                data = data.wrapping_sub(1);
+                self.mem_write(addr, data);
+                // self._update_zero_and_negative_flags(data);
+                if data <= self.register_a {
+                    self.status.insert(CpuFlags::CARRY);
                 }
 
-                // SLO
-                0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
-                    // TODO: could use asl
-                    let addr = self.get_operand_address(&opcode.mode);
-                    let mut data = self.mem_read(addr);
-                    if data >> 7 == 1 {
-                        self.status.insert(CpuFlags::CARRY);
-                    } else {
-                        self.status.remove(CpuFlags::CARRY);
-                    }
-                    data = data << 1;
-                    self.mem_write(addr, data);
-                    self.update_zero_and_negative_flags(data);
-                    self.set_register_a(data | self.register_a);
-                }
-                // #endregion
-                _ => todo!(),
+                self.update_zero_and_negative_flags(self.register_a.wrapping_sub(data));
+            }
+            // ISC
+            0xE7 | 0xF7 | 0xEF | 0xFF | 0xFB | 0xE3 | 0xF3 => {
+                // TODO: could use inc
+                let addr = self.get_operand_address(&opcode.mode);
+                let mut data = self.mem_read(addr);
+                data = data.wrapping_add(1);
+                self.mem_write(addr, data);
+                self.update_zero_and_negative_flags(data);
+                self.add_to_register_a(((data as i8).wrapping_neg().wrapping_sub(1)) as u8);
             }
 
-            if program_counter_state == self.program_counter {
-                self.program_counter += (opcode.len - 1) as u16;
+            // SLO
+            0x07 | 0x17 | 0x0F | 0x1f | 0x1b | 0x03 | 0x13 => {
+                // TODO: could use asl
+                let addr = self.get_operand_address(&opcode.mode);
+                let mut data = self.mem_read(addr);
+                if data >> 7 == 1 {
+                    self.status.insert(CpuFlags::CARRY);
+                } else {
+                    self.status.remove(CpuFlags::CARRY);
+                }
+                data = data << 1;
+                self.mem_write(addr, data);
+                self.update_zero_and_negative_flags(data);
+                self.set_register_a(data | self.register_a);
             }
+            // #endregion
+            _ => todo!(),
+        }
+
+        if program_counter_state == self.program_counter {
+            self.program_counter += (opcode.len - 1) as u16;
         }
     }
 }

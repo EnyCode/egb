@@ -1,4 +1,5 @@
 use crate::nes::cpu::AddressingMode;
+use alloc::vec;
 use alloc::vec::Vec;
 use hashbrown::HashMap;
 

@@ -13,6 +13,7 @@ use embedded_graphics::{
 use tinytga::Tga;
 
 use crate::{
+    events::Event,
     games::{Game, GameConsole},
     gui::{
         core::{
@@ -55,6 +56,7 @@ pub struct GamesScreen {
     dir: Direction,
     // TODO: could be a bigger type but maybe not necessary
     selected_game: u8,
+    events: Vec<Event>,
 }
 
 impl GamesScreen {
@@ -69,6 +71,7 @@ impl GamesScreen {
             dir: Direction::None,
             selected_game,
             previous_game: 0,
+            events: vec![],
         }
     }
 }
@@ -133,6 +136,10 @@ where
                         },
                     ),
                 )));
+            }
+
+            if input.a.should_trigger() {
+                self.events.push(Event::LaunchGame(GameConsole::NES));
             }
         }
 
@@ -280,6 +287,6 @@ where
     }
 
     fn events(&mut self) -> Vec<crate::events::Event> {
-        vec![]
+        self.events.drain(..).collect()
     }
 }

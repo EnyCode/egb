@@ -47,11 +47,14 @@ mod simulator;
 use simulator::Simulator;
 use tinytga::Tga;
 mod buffer;
+mod emu;
 mod events;
+#[cfg(target_arch = "x86_64")]
+mod font;
 mod games;
 mod gui;
 mod input;
-//mod nes;
+mod nes;
 
 use rp2040::Sprig;
 
@@ -129,6 +132,8 @@ fn shared() -> (Option<Sprig>, Option<Simulator>) {
 
 #[cfg(target_arch = "x86_64")]
 fn main() {
+    //font::write_font();
+
     let mut sim = shared().1.unwrap();
     let mut input = InputStatus::default();
 

@@ -4,7 +4,7 @@ use embedded_graphics::{
 };
 use tinytga::Tga;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GameConsole {
     GameBoy,
     GameBoyColor,

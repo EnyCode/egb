@@ -1,4 +1,4 @@
-/*use std::{fs::File, io::Write};
+use std::{fs::File, io::Write};
 
 #[rustfmt::skip]
 const DATA: &[u8] = &[
@@ -63,4 +63,3 @@ pub fn write_font() {
     let mut file = File::create("src/assets/font.raw").unwrap();
     file.write_all(DATA).unwrap();
 }
-*/
