@@ -62,13 +62,21 @@ impl Device<Display, Display> for Simulator {
             match event {
                 SimulatorEvent::Quit => panic!("Exiting emulator *gracefully*"),
                 SimulatorEvent::KeyDown { keycode, .. } => match keycode {
-                    Keycode::Left => input.left.pressed = true,
-                    Keycode::Right => input.right.pressed = true,
+                    Keycode::W => input.up.pressed = true,
+                    Keycode::A => input.left.pressed = true,
+                    Keycode::S => input.down.pressed = true,
+                    Keycode::D => input.right.pressed = true,
+                    Keycode::E => input.a.pressed = true,
+                    Keycode::R => input.b.pressed = true,
                     _ => {}
                 },
                 SimulatorEvent::KeyUp { keycode, .. } => match keycode {
-                    Keycode::Left => input.left.pressed = false,
-                    Keycode::Right => input.right.pressed = false,
+                    Keycode::W => input.up.pressed = false,
+                    Keycode::A => input.left.pressed = false,
+                    Keycode::S => input.down.pressed = false,
+                    Keycode::D => input.right.pressed = false,
+                    Keycode::E => input.a.pressed = false,
+                    Keycode::R => input.b.pressed = false,
                     _ => {}
                 },
                 _ => {}

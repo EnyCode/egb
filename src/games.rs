@@ -4,7 +4,7 @@ use embedded_graphics::{
 };
 use tinytga::Tga;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GameConsole {
     GameBoy,
     GameBoyColor,
@@ -52,7 +52,7 @@ impl GameConsole {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Game {
     pub title: &'static str,
     pub console: GameConsole,

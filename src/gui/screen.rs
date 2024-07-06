@@ -1,7 +1,7 @@
-use alloc::boxed::Box;
+use alloc::{boxed::Box, vec::Vec};
 use embedded_graphics::{draw_target::DrawTarget, geometry::OriginDimensions, pixelcolor::Rgb565};
 
-use crate::input::InputStatus;
+use crate::{events::Event, input::InputStatus};
 
 pub trait Screen<D>
 where
@@ -14,4 +14,5 @@ where
         display: &mut D,
         input: &InputStatus,
     ) -> Result<Option<Box<dyn Screen<D>>>, D::Error>;
+    fn events(&mut self) -> Vec<Event>;
 }

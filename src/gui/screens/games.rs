@@ -56,11 +56,15 @@ pub struct GamesScreen {
 
 impl GamesScreen {
     pub fn new(games: Vec<Game>) -> Self {
+        Self::with_game(games, 255)
+    }
+
+    pub fn with_game(games: Vec<Game>, selected_game: u8) -> Self {
         Self {
             games,
             frame: 0,
             dir: Direction::None,
-            selected_game: 0,
+            selected_game,
             previous_game: 0,
         }
     }
@@ -112,29 +116,36 @@ where
         input: &InputStatus,
     ) -> Result<Option<Box<dyn Screen<D>>>, D::Error> {
         let mut dirty = true;
+        let mut pressed = false;
         //std::println!("{:?} {:?}", input.left.pressed, input.left.timer);
-        if input.left.should_trigger() {
-            self.selected_game = max(self.selected_game.saturating_sub(1), 0);
-            self.dir = Direction::Left;
-        } else if input.right.should_trigger() {
-            self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
-            self.dir = Direction::Right;
+        if self.frame == 0 {
+            if input.left.should_trigger() {
+                self.selected_game = max(self.selected_game.saturating_sub(1), 0);
+                self.dir = Direction::Left;
+                pressed = true;
+            } else if input.right.should_trigger() {
+                self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
+                self.dir = Direction::Right;
+                pressed = true;
+            }
+            if input.b.should_trigger() {
+                return Ok(Some(Box::new(
+                    crate::gui::screens::settings::Settings::new(
+                        self.games.clone(),
+                        if self.selected_game == 0 {
+                            255
+                        } else {
+                            self.selected_game
+                        },
+                    ),
+                )));
+            }
         }
-        //std::println!("selected_game: {}", self.selected_game);
-        /*if !dirty {
-            self.selected_game = match self.dir {
-                Direction::Left => max(self.selected_game.saturating_sub(1), 0),
-                Direction::Right => min(self.selected_game + 1, self.games.len() as u8 - 1),
-                Direction::None => self.selected_game,
-            };
-            self.dir = Direction::None;
-            return Ok(None);
-        }*/
 
         if self.frame == 0 && self.previous_game == self.selected_game {
             dirty = false;
         }
-        if self.frame == TOTAL_FRAMES {
+        if self.frame == TOTAL_FRAMES && !pressed {
             dirty = false;
         }
 
@@ -143,6 +154,10 @@ where
             self.previous_game = self.selected_game;
             self.dir = Direction::None;
             return Ok(None);
+        }
+
+        if self.selected_game == 255 {
+            self.selected_game = 0;
         }
 
         self.frame += 1;
@@ -267,5 +282,9 @@ where
         }
 
         Ok(None)
+    }
+
+    fn events(&mut self) -> Vec<crate::events::Event> {
+        vec![]
     }
 }

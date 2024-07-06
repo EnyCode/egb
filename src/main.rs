@@ -47,6 +47,7 @@ mod simulator;
 use simulator::Simulator;
 use tinytga::Tga;
 mod buffer;
+mod events;
 mod games;
 mod gui;
 mod input;
