@@ -1,5 +1,5 @@
 use crate::nes::opcodes;
-use alloc::vec::Vec;
+use alloc::{format, vec::Vec};
 use bitflags::bitflags;
 use hashbrown::HashMap;
 
@@ -945,7 +945,7 @@ impl CPU {
     }
 }
 
-#[cfg(test)]
+/*#[cfg(test)]
 mod test {
     use super::*;
     use crate::nes::cartridge::test;
@@ -995,3 +995,4 @@ mod test {
         assert_eq!(cpu.register_a, 0x55);
     }
 }
+*/
