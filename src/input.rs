@@ -30,15 +30,64 @@ impl Into<String> for Button {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug, Clone)]
 pub struct ButtonStatus {
     pub pressed: bool,
     pub just_released: bool,
     pub repeat: bool,
+    // in us (microseconds)
+    // used for repeating
+    pub timer: i32,
+}
+
+impl Default for ButtonStatus {
+    fn default() -> Self {
+        Self {
+            pressed: false,
+            just_released: false,
+            repeat: false,
+            timer: -1,
+        }
+    }
+}
+
+impl ButtonStatus {
+    pub fn update(&mut self, pressed: bool) {
+        if pressed {
+            self.pressed = true;
+            self.just_released = false;
+            if self.timer == -1 {
+                self.timer = 500_000;
+                #[cfg(target_arch = "x86_64")]
+                {
+                    self.timer = 100;
+                }
+            } else if self.timer <= 0 {
+                self.repeat = true
+            } else {
+                self.timer -= 8;
+                self.repeat = false;
+            }
+        } else {
+            if self.pressed {
+                self.just_released = true;
+            }
+            self.pressed = false;
+            self.repeat = false;
+            self.timer = -1;
+        }
+    }
+
+    pub fn should_trigger(&self) -> bool {
+        #[cfg(target_arch = "x86_64")]
+        return self.repeat || self.pressed && self.timer == 100;
+        #[cfg(not(target_arch = "x86_64"))]
+        return self.repeat || self.pressed && self.timer == 500_000;
+    }
 }
 
 // TODO: shoulder buttons
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct InputStatus {
     pub up: ButtonStatus,
     pub down: ButtonStatus,
@@ -48,6 +97,18 @@ pub struct InputStatus {
     pub b: ButtonStatus,
     pub start: ButtonStatus,
     pub select: ButtonStatus,
+}
+
+impl InputStatus {
+    // TODO: start select
+    pub fn update(&mut self, up: bool, down: bool, left: bool, right: bool, a: bool, b: bool) {
+        self.up.update(up);
+        self.down.update(down);
+        self.left.update(left);
+        self.right.update(right);
+        self.a.update(a);
+        self.b.update(b);
+    }
 }
 
 #[cfg(feature = "simulator")]

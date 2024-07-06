@@ -73,7 +73,7 @@ pub struct Sprig {
     buf: Buffer,
 }
 
-impl Device<Display> for Sprig {
+impl Device<Display, Buffer> for Sprig {
     fn init(screen: Box<dyn Screen<Buffer>>) -> Self {
         let mut pac = pac::Peripherals::take().unwrap();
         let core = pac::CorePeripherals::take().unwrap();
@@ -229,43 +229,15 @@ impl Device<Display> for Sprig {
     }
 
     fn update_input(&mut self, input: &mut InputStatus) -> InputStatus {
-        let mut new = InputStatus::default();
-        // a
-        let pressed = self.a.is_low().unwrap();
-        if !pressed && input.a.pressed {
-            new.a.just_released = true;
-        }
-        new.a.pressed = pressed;
-        // b
-        let pressed = self.b.is_low().unwrap();
-        if !pressed && input.b.pressed {
-            new.b.just_released = true;
-        }
-        new.b.pressed = pressed;
-        // up
-        let pressed = self.up.is_low().unwrap();
-        if !pressed && input.up.pressed {
-            new.up.just_released = true;
-        }
-        new.up.pressed = pressed;
-        // down
-        let pressed = self.down.is_low().unwrap();
-        if !pressed && input.down.pressed {
-            new.down.just_released = true;
-        }
-        new.down.pressed = pressed;
-        // left
-        let pressed = self.left.is_low().unwrap();
-        if !pressed && input.left.pressed {
-            new.left.just_released = true;
-        }
-        new.left.pressed = pressed;
-        // right
-        let pressed = self.right.is_low().unwrap();
-        if !pressed && input.right.pressed {
-            new.right.just_released = true;
-        }
-        new.right.pressed = pressed;
+        let mut new = input.clone();
+        new.update(
+            self.up.is_low().unwrap(),
+            self.down.is_low().unwrap(),
+            self.left.is_low().unwrap(),
+            self.right.is_low().unwrap(),
+            self.a.is_low().unwrap(),
+            self.b.is_low().unwrap(),
+        );
 
         new
     }

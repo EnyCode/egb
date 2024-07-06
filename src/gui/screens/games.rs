@@ -15,10 +15,10 @@ use tinytga::Tga;
 use crate::{
     games::Game,
     gui::{
-        core::{GREY_CHAR, NORMAL_TEXT, WHITE_CHAR},
+        core::{draw_inputs, BLACK_CHAR, CENTERED_TEXT, GREY_CHAR, NORMAL_TEXT, WHITE_CHAR},
         screen::Screen,
     },
-    input::InputStatus,
+    input::{Button, InputStatus},
 };
 
 // TODO: could these be moved to the sd card to save space for the emulators?
@@ -89,10 +89,11 @@ where
         input: &InputStatus,
     ) -> Result<Option<Box<dyn Screen<D>>>, D::Error> {
         let mut dirty = false;
-        if input.left.pressed {
+        //std::println!("{:?} {:?}", input.left.pressed, input.left.timer);
+        if input.left.should_trigger() {
             self.selected_game = max(self.selected_game.saturating_sub(1), 0);
             dirty = true;
-        } else if input.right.pressed {
+        } else if input.right.should_trigger() {
             self.selected_game = min(self.selected_game + 1, self.games.len() as u8 - 1);
             dirty = true;
         }
@@ -108,9 +109,26 @@ where
             .fill_color(Rgb565::new(0, 1, 6))
             .build();
 
+        let inner_border = PrimitiveStyleBuilder::new()
+            .stroke_width(0)
+            .fill_color(Rgb565::new(24, 49, 24))
+            .build();
+
         Rectangle::new(Point::new(0, 18), Size::new(size.width, size.height - 36))
             .into_styled(background)
             .draw(display)?;
+
+        Rectangle::new(Point::new(0, 8), Size::new(size.width, 10))
+            .into_styled(inner_border)
+            .draw(display)?;
+
+        Text::with_text_style(
+            self.games[self.selected_game as usize].title,
+            Point::new(size.width as i32 / 2, 10),
+            BLACK_CHAR,
+            CENTERED_TEXT,
+        )
+        .draw(display)?;
 
         let mut to_draw = vec![];
         let placeholder = Game::new_placeholder();
@@ -142,13 +160,13 @@ where
             match game.get_console() {
                 crate::games::GameConsole::GameBoy => {
                     // Left
-                    let (mut x, mut y) = ((0 - 100) / 4 * 3, (size.height as i32 - 91) / 2);
+                    let (mut x, mut y) = ((0 - 82) + 16, (size.height as i32 - 91) / 2);
                     // Center
                     if i == 1 {
                         (x, y) = ((size.width as i32 - 82) / 2, (size.height as i32 - 91) / 2);
                     // Right
                     } else if i == 2 {
-                        (x, y) = (size.width as i32 - 100 / 4, (size.height as i32 - 91) / 2);
+                        (x, y) = (size.width as i32 - 16, (size.height as i32 - 91) / 2);
                     }
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GB_CARTRIDGE).unwrap();
@@ -161,11 +179,11 @@ where
                 crate::games::GameConsole::GameBoyColor => todo!(),
                 crate::games::GameConsole::GameBoyAdvanced => {
                     // TODO: i feel like this code code be shorter
-                    let (mut x, mut y) = ((0 - 106) / 4 * 3, (size.height as i32 - 61) / 2);
+                    let (mut x, mut y) = ((0 - 106) + 16, (size.height as i32 - 61) / 2);
                     if i == 1 {
                         (x, y) = ((size.width as i32 - 106) / 2, (size.height as i32 - 61) / 2);
                     } else if i == 2 {
-                        (x, y) = (size.width as i32 - 106 / 4, (size.height as i32 - 61) / 2);
+                        (x, y) = (size.width as i32 - 16, (size.height as i32 - 61) / 2);
                     }
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(GBA_CARTRIDGE).unwrap();
@@ -176,11 +194,11 @@ where
                     Image::new(&tga, Point::new(x + 15, y + 14)).draw(display)?;
                 }
                 crate::games::GameConsole::NES => {
-                    let (mut x, mut y) = ((0 - 100) / 4 * 3, (size.height as i32 - 91) / 2);
+                    let (mut x, mut y) = ((0 - 82) + 16, (size.height as i32 - 91) / 2);
                     if i == 1 {
                         (x, y) = ((size.width as i32 - 82) / 2, (size.height as i32 - 91) / 2);
                     } else if i == 2 {
-                        (x, y) = (size.width as i32 - 100 / 4, (size.height as i32 - 91) / 2);
+                        (x, y) = (size.width as i32 - 16, (size.height as i32 - 91) / 2);
                     }
 
                     let cartridge: Tga<Rgb565> = Tga::from_slice(NES_CARTRIDGE).unwrap();
@@ -193,6 +211,10 @@ where
                 crate::games::GameConsole::Sprig => todo!(),
                 crate::games::GameConsole::Placeholder => (),
             }
+            let mut inputs = vec![];
+            inputs.push((Button::A, "Launch"));
+
+            draw_inputs(inputs, display, WHITE_CHAR)?;
         }
 
         Ok(None)

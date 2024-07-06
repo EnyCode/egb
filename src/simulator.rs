@@ -21,7 +21,7 @@ pub struct Simulator {
     gui: Option<Gui<Display>>,
 }
 
-impl Device<Display> for Simulator {
+impl Device<Display, Display> for Simulator {
     fn init(screen: Box<dyn Screen<Display>>) -> Self {
         let mut display = SimulatorDisplay::<Rgb565>::new(Size::new(160, 128));
         let settings = OutputSettingsBuilder::new()
@@ -56,19 +56,32 @@ impl Device<Display> for Simulator {
     }
 
     fn update_input(&mut self, input: &mut InputStatus) -> InputStatus {
-        let mut new = InputStatus::default();
+        let mut new = input.clone();
 
         for event in self.window.events() {
             match event {
                 SimulatorEvent::Quit => panic!("Exiting emulator *gracefully*"),
                 SimulatorEvent::KeyDown { keycode, .. } => match keycode {
-                    Keycode::Left => new.left.pressed = true,
-                    Keycode::Right => new.right.pressed = true,
+                    Keycode::Left => input.left.pressed = true,
+                    Keycode::Right => input.right.pressed = true,
+                    _ => {}
+                },
+                SimulatorEvent::KeyUp { keycode, .. } => match keycode {
+                    Keycode::Left => input.left.pressed = false,
+                    Keycode::Right => input.right.pressed = false,
                     _ => {}
                 },
                 _ => {}
             }
         }
+        new.update(
+            input.up.pressed,
+            input.down.pressed,
+            input.left.pressed,
+            input.right.pressed,
+            input.a.pressed,
+            input.b.pressed,
+        );
 
         new
     }

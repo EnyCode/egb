@@ -7,8 +7,8 @@ use crate::{
     input::{self, InputStatus},
 };
 
-pub trait Device<D: DrawTarget> {
-    fn init(screen: Box<dyn Screen<Buffer>>) -> Self;
+pub trait Device<D: DrawTarget, B: DrawTarget> {
+    fn init(screen: Box<dyn Screen<B>>) -> Self;
     fn display(&mut self) -> &mut D;
     fn set_backlight(&mut self, brightness: u16);
     fn set_led_l(&mut self, brightness: u16);

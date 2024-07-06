@@ -32,6 +32,7 @@ const PICO_FONT: MonoFont = MonoFont {
 pub const WHITE_CHAR: MonoTextStyle<Rgb565> = MonoTextStyle::new(&PICO_FONT, Rgb565::WHITE);
 pub const GREY_CHAR: MonoTextStyle<Rgb565> =
     MonoTextStyle::new(&PICO_FONT, Rgb565::new(24, 49, 24));
+pub const BLACK_CHAR: MonoTextStyle<Rgb565> = MonoTextStyle::new(&PICO_FONT, Rgb565::BLACK);
 // TODO: Q: is this necessary?
 pub const NORMAL_TEXT: TextStyle = TextStyleBuilder::new()
     .baseline(Baseline::Alphabetic)
@@ -87,7 +88,12 @@ where
     }
 }
 
-pub fn draw_inputs<D>(inputs: Vec<(Button, &str)>, display: &mut D) -> Result<(), D::Error>
+// TODO: add x and y
+pub fn draw_inputs<D>(
+    inputs: Vec<(Button, &str)>,
+    display: &mut D,
+    char_style: MonoTextStyle<Rgb565>,
+) -> Result<(), D::Error>
 where
     D: DrawTarget<Color = Rgb565> + OriginDimensions,
 {
@@ -105,7 +111,7 @@ where
     Text::with_text_style(
         &string,
         Point::new((size.width / 2) as i32, size.height as i32 - 25),
-        WHITE_CHAR,
+        char_style,
         CENTERED_TEXT,
     )
     .draw(display)?;

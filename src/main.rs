@@ -70,9 +70,6 @@ mod rp2040 {
 pub static BOOT2: [u8; 256] = rp2040_boot2::BOOT_LOADER_W25Q080;
 
 #[cfg(target_arch = "arm")]
-const DEVICE: Option<Sprig> = None;
-
-#[cfg(target_arch = "arm")]
 #[entry]
 fn main() -> ! {
     use input::InputStatus;
