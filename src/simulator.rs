@@ -1,5 +1,11 @@
+use crate::emu::Emulator;
+use crate::events::Event;
+use crate::games::GameConsole;
 use crate::gui::core::Gui;
 use crate::gui::screen::Screen;
+use crate::nes::emu::NesEmulator;
+use embedded_graphics::draw_target::DrawTarget;
+use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::{geometry::Size, pixelcolor::Rgb565};
 use embedded_graphics_simulator::sdl2::Keycode;
 use embedded_graphics_simulator::SimulatorEvent;
@@ -7,7 +13,6 @@ use embedded_graphics_simulator::{
     BinaryColorTheme, OutputSettings, OutputSettingsBuilder, SimulatorDisplay, Window,
 };
 use std::boxed::Box;
-
 type Display = SimulatorDisplay<Rgb565>;
 
 use crate::input::InputStatus;
@@ -19,6 +24,7 @@ pub struct Simulator {
     display: Display,
     window: Window,
     gui: Option<Gui<Display>>,
+    nes_emu: Option<NesEmulator>,
 }
 
 impl Device<Display, Display> for Simulator {
@@ -34,6 +40,7 @@ impl Device<Display, Display> for Simulator {
             gui: Some(Gui::new(screen, &mut display).unwrap()),
             display,
             window,
+            nes_emu: None,
         }
     }
     fn display(&mut self) -> &mut Display {
@@ -102,6 +109,20 @@ impl Device<Display, Display> for Simulator {
                 .unwrap()
                 .update(input, &mut self.display)
                 .unwrap();
+
+            let events = self.gui.as_mut().unwrap().events();
+            for event in events {
+                match event {
+                    Event::LaunchGame(console) => self.launch(console),
+                    _ => (),
+                }
+            }
+        } else if self.nes_emu.is_some() {
+            self.nes_emu
+                .as_mut()
+                .unwrap()
+                .tick(&mut self.display)
+                .unwrap();
         }
     }
 }
@@ -113,5 +134,11 @@ impl Simulator {
 
     pub fn show_static(&mut self) {
         self.window.show_static(&self.display);
+    }
+
+    fn launch(&mut self, console: GameConsole) {
+        self.display.clear(Rgb565::BLACK);
+        self.gui = None;
+        self.nes_emu = Some(NesEmulator::new(&mut self.display));
     }
 }

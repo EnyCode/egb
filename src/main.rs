@@ -136,12 +136,16 @@ fn main() {
 
     let mut sim = shared().1.unwrap();
     let mut input = InputStatus::default();
+    let mut val = 0;
 
     loop {
         input = sim.update_input(&mut input);
         sim.update(&input);
-        sim.update_window();
-        sim.delay_ms(100);
+        if val % 500 == 0 {
+            sim.update_window();
+        }
+        //sim.delay_ms(100);
+        val += 1;
     }
 }
 
@@ -149,8 +153,14 @@ fn main() {
 #[cfg(target_arch = "arm")]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
+    use alloc::{borrow::ToOwned, format, string::String};
     use embedded_hal::digital::{OutputPin, StatefulOutputPin};
-    use rp2040_hal::Clock;
+    use rp2040_hal::{usb::UsbBus, Clock};
+    use usb_device::{
+        bus::UsbBusAllocator,
+        device::{StringDescriptors, UsbDeviceBuilder, UsbVidPid},
+    };
+    use usbd_serial::SerialPort;
 
     unsafe {
         let mut pac = rp2040_hal::pac::Peripherals::steal();
@@ -170,6 +180,45 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
         .ok()
         .unwrap();
 
+        let timer = hal::Timer::new(pac.TIMER, &mut pac.RESETS, &clocks);
+
+        let usb_bus = UsbBusAllocator::new(UsbBus::new(
+            pac.USBCTRL_REGS,
+            pac.USBCTRL_DPRAM,
+            clocks.usb_clock,
+            true,
+            &mut pac.RESETS,
+        ));
+
+        let mut serial = SerialPort::new(&usb_bus);
+
+        let payload = info.payload();
+        let msg = match payload.downcast_ref::<&str>() {
+            Some(s) => *s,
+            None => match payload.downcast_ref::<String>() {
+                Some(s) => &**s,
+                None => "Box<Any>",
+            },
+        };
+
+        let msg = match info.location() {
+            Some(location) => {
+                format!("panicked at '{}', {}", msg, location)
+            }
+            None => format!("panicked at '{}'", msg),
+        };
+
+        let mut usb_dev = UsbDeviceBuilder::new(&usb_bus, UsbVidPid(0x29c0, 0x0001))
+            .strings(&[StringDescriptors::default()
+                .manufacturer("Eny's Workshop")
+                .product("Eny's Gameboy")
+                .serial_number("EGB-0001")])
+            .unwrap()
+            .device_class(2) // from: https://www.usb.org/defined-class-codes
+            .build();
+
+        //serial.flush();
+
         let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().to_Hz());
         let sio = hal::Sio::new(pac.SIO);
 
@@ -180,14 +229,40 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
             &mut pac.RESETS,
         );
 
-        //let mut led_l = pins.gpio28.into_push_pull_output();
+        let mut led_l = pins.gpio28.into_push_pull_output();
         let mut led_r = pins.gpio4.into_push_pull_output();
 
-        led_r.set_high().unwrap();
+        usb_dev.poll(&mut [&mut serial]);
+        serial.write(msg.as_bytes());
+        serial.flush();
+
+        led_l.set_high().unwrap();
+        delay.delay_ms(330);
+        led_l.set_low().unwrap();
+        delay.delay_ms(1500);
+
+        /*loop {
+            led_l.set_high().unwrap();
+            let out = serial.write(msg.as_bytes());
+            led_r.set_state(out.is_err().into()).unwrap();
+            led_l.set_low().unwrap();
+            delay.delay_ms(250u32);
+            led_r.set_low().unwrap();
+            delay.delay_ms(250u32);
+            //serial.write(msg.as_bytes());
+        }*/
+
+        let mut logged = false;
 
         loop {
-            led_r.toggle().unwrap();
-            delay.delay_ms(500u32);
+            usb_dev.poll(&mut [&mut serial]);
+            delay.delay_ms(5);
+            if !logged && timer.get_counter().ticks() >= 4_000_000 {
+                led_r.set_high().unwrap();
+                serial.write(msg.as_bytes());
+                serial.flush();
+                logged = true;
+            }
         }
     }
 }

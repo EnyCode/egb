@@ -269,19 +269,23 @@ impl Device<Display, Buffer> for Sprig {
                     .fill_contiguous(&self.buf.bounding_box(), self.buf.data())
                     .unwrap();
                 self.buf.dirty = false;
+            }
 
-                let events = self.gui.as_mut().unwrap().events();
-                for event in events {
-                    match event {
-                        Event::BacklightBrightness(brightness) => self.set_backlight(brightness),
-                        Event::LedL(brightness) => self.set_led_r(brightness),
-                        Event::LedR(brightness) => self.set_led_r(brightness),
-                        Event::LaunchGame(console) => self.launch(console),
-                    }
+            let events = self.gui.as_mut().unwrap().events();
+            for event in events {
+                match event {
+                    Event::BacklightBrightness(brightness) => self.set_backlight(brightness),
+                    Event::LedL(brightness) => self.set_led_r(brightness),
+                    Event::LedR(brightness) => self.set_led_r(brightness),
+                    Event::LaunchGame(console) => self.launch(console),
                 }
             }
         } else if self.nes_emu.is_some() {
-            self.nes_emu.as_mut().unwrap().tick(&mut self.buf);
+            self.nes_emu
+                .as_mut()
+                .unwrap()
+                .tick(&mut self.display)
+                .unwrap();
 
             if self.buf.dirty {
                 self.display
@@ -297,9 +301,10 @@ impl Device<Display, Buffer> for Sprig {
 impl Sprig {
     fn launch(&mut self, console: GameConsole) {
         if console == GameConsole::NES {
-            self.buf.clear(Rgb565::BLACK);
+            self.display.clear(Rgb565::BLACK).unwrap();
             self.gui = None;
-            self.nes_emu = Some(NesEmulator::new());
+            self.nes_emu = Some(NesEmulator::new(&mut self.display));
+            self.display.clear(Rgb565::BLUE).unwrap();
         }
     }
 }

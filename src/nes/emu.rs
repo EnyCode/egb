@@ -30,8 +30,11 @@ pub struct NesEmulator {
     cpu: CPU,
 }
 
-impl Emulator for NesEmulator {
-    fn new() -> Self {
+impl<D> Emulator<D> for NesEmulator
+where
+    D: DrawTarget<Color = Rgb565>,
+{
+    fn new(display: &mut D) -> Self {
         let game_code = vec![
             0x20, 0x06, 0x06, 0x20, 0x38, 0x06, 0x20, 0x0d, 0x06, 0x20, 0x2a, 0x06, 0x60, 0xa9,
             0x02, 0x85, 0x02, 0xa9, 0x04, 0x85, 0x03, 0xa9, 0x11, 0x85, 0x10, 0xa9, 0x10, 0x85,
@@ -58,16 +61,18 @@ impl Emulator for NesEmulator {
             0x60,
         ];
 
-        let bytes = include_bytes!("../snake.nes");
-        let rom = Rom::new(&bytes.to_vec()).unwrap();
-        let mut cpu = CPU::new(rom);
+        let bytes: &[u8; 32784] = include_bytes!("../snake.nes");
+        display.clear(Rgb565::RED);
+        let rom = Rom::new(&bytes.to_vec());
+        display.clear(Rgb565::GREEN);
+        let mut cpu = CPU::new(rom.unwrap());
         cpu.load(game_code);
         cpu.reset();
 
         Self { cpu }
     }
 
-    fn tick(&mut self, display: &mut Buffer) {
+    fn tick(&mut self, display: &mut D) -> Result<(), D::Error> {
         self.cpu.tick();
         self.cpu.mem_write(0xFE, 0x77);
 
@@ -85,8 +90,6 @@ impl Emulator for NesEmulator {
             frame_idx += 2;
         }
 
-        Image::new(&ImageRaw::<Rgb565>::new(&data, 32), Point::zero())
-            .draw(display)
-            .unwrap();
+        Image::new(&ImageRaw::<Rgb565>::new(&data, 32), Point::zero()).draw(display)
     }
 }
